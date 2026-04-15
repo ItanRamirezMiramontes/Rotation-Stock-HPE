@@ -19,6 +19,9 @@ public class SalesOrder {
     private String hpeOrderId;
 
     @Enumerated(EnumType.STRING)
+    private IngestionStage stage;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "header_status")
     private OrderStatus headerStatus;
 

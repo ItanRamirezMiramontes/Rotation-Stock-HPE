@@ -15,17 +15,11 @@ import java.util.List;
 public class Customer {
 
     @Id
-    @Column(name = "customer_id", length = 20)
+    @Column(name = "customer_id", length = 50, unique = true)
     private String customerId;
 
     @Column(name = "customer_name", length = 150)
     private String customerName;
-
-    @Column(length = 3)
-    private String country;
-
-    @Column(name = "group_id_country")
-    private Long groupIdCountry;
 
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
