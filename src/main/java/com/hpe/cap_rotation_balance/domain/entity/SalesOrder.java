@@ -1,10 +1,8 @@
 package com.hpe.cap_rotation_balance.domain.entity;
 
-import com.hpe.cap_rotation_balance.domain.enums.Currency;
-import com.hpe.cap_rotation_balance.domain.enums.FiscalQuarter;
-import com.hpe.cap_rotation_balance.domain.enums.OrderStatus;
-import com.hpe.cap_rotation_balance.domain.enums.OrderType;
-import com.hpe.cap_rotation_balance.entity.enums.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hpe.cap_rotation_balance.domain.enums.*;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -13,9 +11,7 @@ import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "sales_orders")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class SalesOrder {
 
     @Id
@@ -23,42 +19,48 @@ public class SalesOrder {
     private String hpeOrderId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "header_status", length = 10)
+    @Column(name = "header_status")
     private OrderStatus headerStatus;
 
+    private String omRegion;
+    private String sorg;
+    private String salesOffice;
+    private String salesGroup;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "order_type", length = 10)
     private OrderType orderType;
 
-    @Column(name = "order_reason", length = 15)
-    private String orderReason;
-
-    @Column(name = "entry_date", nullable = false) //nullable nos dice que no debemos tener datos vacios
+    @JsonFormat(pattern = "dd/MM/yyyy")
     private LocalDate entryDate;
 
+    @Column(name = "cust_po_ref")
+    private String custPoRef;
+
+    private String shipToAddress;
+
+    private String rtm;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "fiscal_quarter", length = 5, nullable = false)
     private FiscalQuarter fiscalQuarter;
 
-    @Column(name = "fiscal_year", nullable = false)
-    private int fiscalYear;
+    private Integer fiscalYear;
 
-    //preciosion es el numero total de digitos que puede tener el numero
-    //scale es cuantos espacios tiene despues del punto decimal
-
-    @Column(name = "net_value_item", precision = 19, scale = 4, nullable = false)
+    @Column(precision = 19, scale = 4)
     private BigDecimal netValueItem;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "currency", length = 5, nullable = false)
     private Currency currency;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    private String orderReason;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "customer_id")
+    @JsonIgnoreProperties({"orders", "hibernateLazyInitializer", "handler"})
     private Customer customer;
 
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
-    private OffsetDateTime createdAt = OffsetDateTime.now();
-
-    private OffsetDateTime updatedAt = OffsetDateTime.now();
+    @PrePersist
+    protected void onCreate() { this.createdAt = OffsetDateTime.now(); this.updatedAt = OffsetDateTime.now(); }
 }

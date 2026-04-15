@@ -1,5 +1,6 @@
 package com.hpe.cap_rotation_balance.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.OffsetDateTime;
@@ -17,7 +18,7 @@ public class Customer {
     @Column(name = "customer_id", length = 20)
     private String customerId;
 
-    @Column(name = "customer_name", nullable = false, length = 150)
+    @Column(name = "customer_name", length = 150)
     private String customerName;
 
     @Column(length = 3)
@@ -31,6 +32,6 @@ public class Customer {
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
     @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
-    @Builder.Default
+    @JsonIgnore
     private List<SalesOrder> orders = new ArrayList<>();
 }
