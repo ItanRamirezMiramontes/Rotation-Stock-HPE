@@ -16,6 +16,7 @@ public class ExcelReader {
     private final DataFormatter formatter = new DataFormatter();
 
     public List<ExcelOrderDTO> readExcel(MultipartFile file) {
+        log.info("Iniciando lectura de RAW DATA Excel...");
         List<ExcelOrderDTO> dtos = new ArrayList<>();
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -23,7 +24,7 @@ public class ExcelReader {
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
-                if (row == null) continue;
+                if (row == null || isRowEmpty(row, colMap.get("HPE Order"))) continue;
 
                 dtos.add(new ExcelOrderDTO(
                         readSapId(row, colMap.get("HPE Order")),
@@ -38,35 +39,53 @@ public class ExcelReader {
                         getVal(row, colMap.get("Ship-to address")),
                         getVal(row, colMap.get("RTM")),
                         getVal(row, colMap.get("Local currency")),
-                        getVal(row, colMap.get("Sold To Party ID")), // Nuevo
-                        getVal(row, colMap.get("Ship-to Name")),      // Nuevo
-                        getVal(row, colMap.get("Order Reason Code"))  // Nuevo
+                        getVal(row, colMap.get("Sold To Party ID")),
+                        getVal(row, colMap.get("Ship-to Name")),
+                        getVal(row, colMap.get("Order Reason Code"))
                 ));
             }
-        } catch (Exception e) { /* log error */ }
+        } catch (Exception e) {
+            log.error("Error en Raw Data: {}", e.getMessage());
+        }
         return dtos;
     }
 
     public Map<String, BigDecimal> readPriceMap(MultipartFile file) {
+        log.info("Iniciando mapeo de precios (Price Report)...");
         Map<String, BigDecimal> prices = new HashMap<>();
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
-            Row headerRow = sheet.getRow(0);
-            if (headerRow == null) return prices;
+            Map<String, Integer> colMap = mapHeaders(sheet.getRow(0));
 
-            Map<String, Integer> colMap = mapHeaders(headerRow);
+            // CORRECCIÓN BASADA EN TUS LOGS:
+            // Intentar encontrar el ID de la orden
             Integer idIdx = colMap.get("Sales Document");
-            Integer priceIdx = colMap.get("Net Value");
+            if (idIdx == null) idIdx = colMap.get("HPE Order");
 
-            if (idIdx == null || priceIdx == null) return prices;
+            // Intentar encontrar el Precio (en tus logs aparece como "Net Value (Item)")
+            Integer priceIdx = colMap.get("Net Value (Item)");
+            if (priceIdx == null) priceIdx = colMap.get("Net Value (Header)");
+            if (priceIdx == null) priceIdx = colMap.get("Net Value");
+
+            log.info("Índices detectados - ID: {}, Precio: {}", idIdx, priceIdx);
+
+            if (idIdx == null || priceIdx == null) {
+                log.error("No se pudieron encontrar las columnas necesarias. Cabeceras disponibles: {}", colMap.keySet());
+                return prices;
+            }
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
+
                 String id = readSapId(row, idIdx);
                 BigDecimal price = parseBigDecimal(getVal(row, priceIdx));
-                if (!id.isEmpty()) prices.put(id, price);
+
+                if (id != null && !id.isEmpty()) {
+                    prices.put(id, price);
+                }
             }
+            log.info("Mapa de precios creado. Registros: {}", prices.size());
         } catch (Exception e) {
             log.error("Error en Price Report: {}", e.getMessage());
         }
@@ -77,14 +96,16 @@ public class ExcelReader {
         if (index == null) return "";
         Cell cell = row.getCell(index);
         if (cell == null) return "";
+
         if (cell.getCellType() == CellType.NUMERIC) {
-            return String.valueOf((long) cell.getNumericCellValue());
+            return String.format("%.0f", cell.getNumericCellValue());
         }
         return formatter.formatCellValue(cell).trim();
     }
 
     private Map<String, Integer> mapHeaders(Row headerRow) {
         Map<String, Integer> map = new HashMap<>();
+        if (headerRow == null) return map;
         for (Cell cell : headerRow) {
             String name = formatter.formatCellValue(cell).trim();
             if (!name.isEmpty()) map.put(name, cell.getColumnIndex());
@@ -99,7 +120,8 @@ public class ExcelReader {
     }
 
     private boolean isRowEmpty(Row row, Integer criticalIndex) {
-        return criticalIndex == null || readSapId(row, criticalIndex).isEmpty();
+        if (row == null || criticalIndex == null) return true;
+        return readSapId(row, criticalIndex).isEmpty();
     }
 
     public boolean isRawDataReport(MultipartFile file) {
@@ -107,14 +129,15 @@ public class ExcelReader {
     }
 
     public boolean isPriceReport(MultipartFile file) {
-        return checkHeader(file, "Sales Document");
+        // En tus logs, el price report tiene "Sales Document"
+        return checkHeader(file, "Sales Document") || checkHeader(file, "Net Value (Item)");
     }
 
-    private boolean checkHeader(MultipartFile file, String header) {
+    private boolean checkHeader(MultipartFile file, String target) {
         try (InputStream is = file.getInputStream(); Workbook wb = WorkbookFactory.create(is)) {
             Row r = wb.getSheetAt(0).getRow(0);
             for (Cell c : r) {
-                if (formatter.formatCellValue(c).trim().equalsIgnoreCase(header)) return true;
+                if (formatter.formatCellValue(c).trim().equalsIgnoreCase(target)) return true;
             }
         } catch (Exception e) { return false; }
         return false;
@@ -122,7 +145,10 @@ public class ExcelReader {
 
     private BigDecimal parseBigDecimal(String value) {
         if (value == null || value.isBlank()) return BigDecimal.ZERO;
-        try { return new BigDecimal(value.replaceAll("[^\\d.-]", "")); }
-        catch (Exception e) { return BigDecimal.ZERO; }
+        try {
+            return new BigDecimal(value.replaceAll("[^\\d.-]", ""));
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
+        }
     }
 }
