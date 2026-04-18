@@ -13,5 +13,7 @@ public record ExcelOrderDTO(
         String shipToAddress,
         String rtm,
         String currency,
-        String netValue
+        String soldToPartyId,
+        String customerName,
+        String orderReasonCode
 ) {}

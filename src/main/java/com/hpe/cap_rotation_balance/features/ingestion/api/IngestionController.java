@@ -3,6 +3,7 @@ package com.hpe.cap_rotation_balance.features.ingestion.api;
 import com.hpe.cap_rotation_balance.features.ingestion.dto.IngestionResponseDTO;
 import com.hpe.cap_rotation_balance.features.ingestion.service.IngestionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/ingestion")
 @RequiredArgsConstructor
@@ -17,42 +19,57 @@ public class IngestionController {
 
     private final IngestionService ingestionService;
 
+    /**
+     * Endpoint para cargar archivos de SAP (Raw Data o Price Report).
+     * El sistema detecta automáticamente el tipo de reporte por los encabezados.
+     */
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadReport(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Archivo vacío"));
-        }
+    public ResponseEntity<IngestionResponseDTO> uploadFile(@RequestParam("file") MultipartFile file) {
+        log.info("Recibiendo archivo para ingesta: {}", file.getOriginalFilename());
 
-        String fileName = file.getOriginalFilename();
-        if (fileName == null || (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls"))) {
-            return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                    .body(Map.of("error", "Solo se admiten archivos Excel (.xlsx, .xls)"));
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
         }
 
         try {
-            // Senior Dev Tip: El service ahora guarda de forma incremental.
-            // La respuesta ya contiene el conteo de lo que se acaba de persistir.
             IngestionResponseDTO response = ingestionService.handleFileUpload(file);
             return ResponseEntity.ok(response);
-
+        } catch (IllegalArgumentException e) {
+            log.error("Archivo no reconocido: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error procesando el archivo", "details", e.getMessage()));
+            log.error("Error crítico en la carga: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
+    /**
+     * Endpoint para confirmar las órdenes que están en estado READY_TO_SAVE.
+     * Esto finaliza el ciclo del autómata de estados.
+     */
     @PostMapping("/confirm")
-    public ResponseEntity<?> confirmIngestion() {
+    public ResponseEntity<Map<String, String>> confirmIngestion() {
         try {
-            // Este método cambia el stage de READY_TO_SAVE a COMPLETED
-            // para todas las órdenes que ya tengan precio y raw data.
             ingestionService.confirmAndSave();
-            return ResponseEntity.ok(Map.of("message", "Órdenes finalizadas y confirmadas exitosamente"));
+            return ResponseEntity.ok(Map.of(
+                    "message", "Ingesta confirmada exitosamente",
+                    "status", "COMPLETED"
+            ));
         } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
+                    .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error al confirmar los datos", "details", e.getMessage()));
+                    .body(Map.of("error", "Error interno al confirmar la ingesta"));
         }
+    }
+
+    /**
+     * Opcional: Endpoint de salud de la ingesta para Postman.
+     */
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> getStatus() {
+        // Aquí podrías inyectar un método del service que cuente órdenes por stage
+        return ResponseEntity.ok(Map.of("service", "Ingestion API", "active", true));
     }
 }
