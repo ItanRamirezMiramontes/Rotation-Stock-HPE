@@ -74,8 +74,10 @@ public class CustomerController {
     @GetMapping("/{id}/balance")
     public ResponseEntity<CapBalanceDTO> getBalance(
             @PathVariable String id,
-            @RequestParam String quarter,
+            @RequestParam com.hpe.cap_rotation_balance.domain.enums.FiscalQuarter quarter, // Cambiado de String a FiscalQuarter
             @RequestParam int year) {
+
+        // Ahora el tipo coincide exactamente con lo que pide BalanceService
         return ResponseEntity.ok(balanceService.getCustomerBalance(id, quarter, year));
     }
 }
