@@ -16,6 +16,8 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, String> 
      */
     List<SalesOrder> findByStage(IngestionStage stage);
 
+    List<SalesOrder> findByCustomer_CustomerId(String customerId);
+
     // Opcional: Si quieres contar cuántas órdenes hay en cierto estado
     long countByStage(IngestionStage stage);
 }

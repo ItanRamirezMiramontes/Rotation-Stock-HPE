@@ -4,7 +4,6 @@ import com.hpe.cap_rotation_balance.features.ingestion.dto.IngestionResponseDTO;
 import com.hpe.cap_rotation_balance.features.ingestion.service.IngestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,56 +19,48 @@ public class IngestionController {
     private final IngestionService ingestionService;
 
     /**
-     * Endpoint para cargar archivos de SAP (Raw Data o Price Report).
-     * El sistema detecta automáticamente el tipo de reporte por los encabezados.
+     * Upload SAP files (Raw Data or Price Report).
+     * The system automatically detects the report type by its headers.
      */
     @PostMapping("/upload")
     public ResponseEntity<IngestionResponseDTO> uploadFile(@RequestParam("file") MultipartFile file) {
-        log.info("Recibiendo archivo para ingesta: {}", file.getOriginalFilename());
+        log.info("Receiving file for ingestion...");
 
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+        // Si por alguna razón Spring deja pasar un archivo nulo o vacío
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File content is empty. Please upload a non-empty Excel/CSV file.");
         }
 
-        try {
-            IngestionResponseDTO response = ingestionService.handleFileUpload(file);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Archivo no reconocido: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).build();
-        } catch (Exception e) {
-            log.error("Error crítico en la carga: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        IngestionResponseDTO response = ingestionService.handleFileUpload(file);
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Endpoint para confirmar las órdenes que están en estado READY_TO_SAVE.
-     * Esto finaliza el ciclo del autómata de estados.
+     * Confirms orders in READY_TO_SAVE state.
+     * Completes the state machine cycle and persists data.
      */
     @PostMapping("/confirm")
     public ResponseEntity<Map<String, String>> confirmIngestion() {
-        try {
-            ingestionService.confirmAndSave();
-            return ResponseEntity.ok(Map.of(
-                    "message", "Ingesta confirmada exitosamente",
-                    "status", "COMPLETED"
-            ));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
-                    .body(Map.of("error", e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error interno al confirmar la ingesta"));
-        }
+        log.info("Confirming ingestion session...");
+
+        // The service should throw IllegalStateException if no data is ready to be saved
+        ingestionService.confirmAndSave();
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Ingestion successfully confirmed and persisted",
+                "status", "COMPLETED"
+        ));
     }
 
     /**
-     * Opcional: Endpoint de salud de la ingesta para Postman.
+     * Health check and status of the current ingestion session.
      */
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getStatus() {
-        // Aquí podrías inyectar un método del service que cuente órdenes por stage
-        return ResponseEntity.ok(Map.of("service", "Ingestion API", "active", true));
+        return ResponseEntity.ok(Map.of(
+                "service", "Ingestion API",
+                "active", true,
+                "message", "System is ready for new SAP data imports"
+        ));
     }
 }

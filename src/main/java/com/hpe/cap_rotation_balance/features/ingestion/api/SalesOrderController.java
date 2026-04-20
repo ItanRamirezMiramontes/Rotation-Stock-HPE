@@ -2,6 +2,7 @@ package com.hpe.cap_rotation_balance.features.ingestion.api;
 
 import com.hpe.cap_rotation_balance.domain.entity.SalesOrder;
 import com.hpe.cap_rotation_balance.domain.repository.SalesOrderRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,8 +22,11 @@ public class SalesOrderController {
     private final SalesOrderRepository salesOrderRepository;
 
     @GetMapping
-    public ResponseEntity<Page<SalesOrder>> getOrders(@RequestParam(defaultValue = "0") int page) {
-        Pageable pageable = PageRequest.of(page, 10, Sort.by("hpeOrderId").ascending());
-        return ResponseEntity.ok(salesOrderRepository.findAll(pageable));
+    public Page<SalesOrder> getAll(Pageable pageable) {
+        Page<SalesOrder> orders = salesOrderRepository.findAll(pageable);
+        if (orders.isEmpty()) {
+            throw new EntityNotFoundException("There are no registered orders");
+        }
+        return orders;
     }
 }
