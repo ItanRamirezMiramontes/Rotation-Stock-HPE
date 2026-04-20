@@ -8,7 +8,8 @@ public enum OrderType {
     ZDR("ZDR", "Debit Memo"),
     ZCR("ZCR", "Credit Memo"),
     OR("OR", "Standard Order"),
-    UNKNOWN("UNKNOWN", "Unknown Type");
+    UNKNOWN("UNKNOWN", "Unknown Type"),
+    RETURN("RETURN","Return Order");
 
     private final String code;
     private final String description;

@@ -13,6 +13,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
+/**
+ * Component responsible for mapping Raw Data from Excel DTOs to the SalesOrder Entity.
+ * Handles complex data transformations such as Date parsing based on SORG regions
+ * and Fiscal Calendar calculations.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -20,8 +25,13 @@ public class OrderMapper {
 
     private final FiscalEngine fiscalEngine;
 
+    /**
+     * Updates an existing or new SalesOrder entity with data from the Raw Data Excel report.
+     * * @param order The SalesOrder entity to be updated.
+     * @param dto   The data transfer object containing raw Excel values.
+     */
     public void updateRawData(SalesOrder order, ExcelOrderDTO dto) {
-        // 1. Identificadores Básicos (IMPORTANTE: Limpiar el ID)
+        // 1. Basic Identifiers (Trimming to ensure clean IDs for DB lookups)
         String cleanId = (dto.orderId() != null) ? dto.orderId().trim() : null;
         order.setHpeOrderId(cleanId);
 
@@ -29,44 +39,45 @@ public class OrderMapper {
         order.setOrderType(OrderType.fromString(dto.type()));
         order.setOrderReason(dto.orderReasonCode());
 
-        // 2. Fechas y Periodos Fiscales
+        // 2. Dates and Fiscal Periods
         LocalDate entryDate = parseDate(dto.entryDate(), dto.sorg());
         if (entryDate != null) {
             order.setEntryDate(entryDate);
             order.setFiscalQuarter(fiscalEngine.calculateQuarter(entryDate));
             order.setFiscalYear(fiscalEngine.calculateFiscalYear(entryDate));
         } else {
-            log.warn("No se pudo parsear la fecha '{}' para la orden {}", dto.entryDate(), cleanId);
+            log.warn("Could not parse date '{}' for order ID: {}", dto.entryDate(), cleanId);
         }
 
-        // 3. Estructura de Ventas
+        // 3. Sales Structure
         order.setOmRegion(dto.omRegion());
         order.setSorg(dto.sorg());
         order.setSalesOffice(dto.salesOffice());
         order.setSalesGroup(dto.salesGroup());
 
-        // 4. Logística
+        // 4. Logistics & Shipping
         order.setRtm(dto.rtm());
         order.setShipToAddress(dto.shipToAddress());
 
-        // 5. Status de Cabecera
+        // 5. Header Status Mapping
         order.setHeaderStatus(mapSapStatus(dto.headerStatus()));
 
-        // 6. Moneda (Validación robusta)
+        // 6. Currency Validation
         if (dto.currency() != null && !dto.currency().isBlank()) {
             try {
                 order.setCurrency(Currency.valueOf(dto.currency().trim().toUpperCase()));
-            } catch (Exception e) {
-                log.error("Moneda no reconocida: {}", dto.currency());
-                // Opcional: poner una moneda por defecto o dejar null
+            } catch (IllegalArgumentException e) {
+                log.error("Unrecognized currency code: {}. Defaulting to null.", dto.currency());
             }
         }
 
-        // NOTA: netValueItem NO se toca aquí.
-        // Se mantiene lo que ya tenga la entidad (null si es nueva,
-        // o el precio previo si es una actualización de RAW).
+        // Note: netValueItem is NOT modified here.
+        // It is preserved until the Price Report ingestion process.
     }
 
+    /**
+     * Maps SAP Status strings (INV, OPN, CANC) to internal OrderStatus enum.
+     */
     private OrderStatus mapSapStatus(String status) {
         if (status == null || status.isBlank()) return OrderStatus.UNKNOWN;
         String s = status.trim().toUpperCase();
@@ -78,21 +89,25 @@ public class OrderMapper {
         };
     }
 
+    /**
+     * Sophisticated date parser that handles:
+     * 1. Excel Serial Numbers (e.g., 45230).
+     * 2. Regional formats (MM/DD/YYYY for US/CA, DD/MM/YYYY for others) based on SORG.
+     */
     private LocalDate parseDate(String raw, String sorg) {
         if (raw == null || raw.isBlank()) return null;
         String cleanRaw = raw.trim();
 
-        // Manejo de fechas seriales de Excel (ej: 45230)
+        // Handle Excel Serial Dates (numeric strings)
         if (cleanRaw.matches("\\d+(\\.\\d+)?")) {
             try {
                 return LocalDate.of(1899, 12, 30).plusDays((long) Double.parseDouble(cleanRaw));
             } catch (Exception ignored) {}
         }
 
-        // Determinar orden de fecha basado en SORG
+        // Determine date logic based on Sales Organization (SORG)
         boolean isNorthAmerica = (sorg != null && (sorg.startsWith("US") || sorg.startsWith("CA")));
 
-        // Agregamos formatos con guiones y slash para mayor cobertura
         String[] patterns = isNorthAmerica
                 ? new String[]{"M/d/yy", "MM/dd/yy", "M/d/yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "MM-dd-yyyy"}
                 : new String[]{"d/M/yy", "dd/MM/yy", "d/M/yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "dd-MM-yyyy"};
@@ -110,16 +125,16 @@ public class OrderMapper {
     }
 
     /**
-     * Utilidad para limpiar montos monetarios de Excel que vienen como String
+     * Utility to clean and parse monetary values from Excel strings.
+     * Removes currency symbols, commas, and whitespace.
      */
     public BigDecimal parseNetValue(String value) {
         if (value == null || value.isBlank()) return BigDecimal.ZERO;
         try {
-            // Elimina símbolos de moneda, comas de miles y espacios
             String cleaned = value.replaceAll("[^\\d.-]", "");
             return new BigDecimal(cleaned);
         } catch (Exception e) {
-            log.error("Error parseando valor monetario: {}", value);
+            log.error("Error parsing monetary value: {}. Returning ZERO.", value);
             return BigDecimal.ZERO;
         }
     }

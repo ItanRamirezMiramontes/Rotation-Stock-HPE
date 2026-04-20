@@ -20,7 +20,7 @@ public class FiscalEngine {
             case 2, 3, 4   -> FiscalQuarter.Q2;
             case 5, 6, 7   -> FiscalQuarter.Q3;
             case 8, 9, 10  -> FiscalQuarter.Q4;
-            default -> throw new IllegalArgumentException("Mes no válido: " + month);
+            default -> throw new IllegalArgumentException("month not valid: " + month);
         };
     }
 }

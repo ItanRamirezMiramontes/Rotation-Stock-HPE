@@ -10,17 +10,33 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.*;
 
+/**
+ * Component responsible for parsing SAP Excel reports (Raw Data and Price Reports).
+ * Uses Apache POI for spreadsheet manipulation and data extraction.
+ */
 @Slf4j
 @Component
 public class ExcelReader {
     private final DataFormatter formatter = new DataFormatter();
 
+    /**
+     * Reads the "Raw Data" Excel file containing order header information.
+     * * @param file The uploaded MultipartFile.
+     * @return A list of ExcelOrderDTO containing raw order data.
+     * @throws IllegalArgumentException If the file cannot be processed or headers are missing.
+     */
     public List<ExcelOrderDTO> readExcel(MultipartFile file) {
-        log.info("Iniciando lectura de RAW DATA Excel...");
+        log.info("Starting RAW DATA Excel parsing...");
         List<ExcelOrderDTO> dtos = new ArrayList<>();
+
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
             Map<String, Integer> colMap = mapHeaders(sheet.getRow(0));
+
+            // Validate critical column
+            if (!colMap.containsKey("HPE Order")) {
+                throw new IllegalArgumentException("Critical header 'HPE Order' not found in Raw Data report.");
+            }
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -45,33 +61,38 @@ public class ExcelReader {
                 ));
             }
         } catch (Exception e) {
-            log.error("Error en Raw Data: {}", e.getMessage());
+            log.error("Critical error parsing Raw Data: {}", e.getMessage());
+            throw new IllegalArgumentException("Failed to process Raw Data file: " + e.getMessage());
         }
         return dtos;
     }
 
+    /**
+     * Reads the "Price Report" and creates a mapping between SAP Order IDs and their Net Values.
+     * * @param file The uploaded MultipartFile.
+     * @return A map where Key is the SAP Order ID and Value is the BigDecimal price.
+     */
     public Map<String, BigDecimal> readPriceMap(MultipartFile file) {
-        log.info("Iniciando mapeo de precios (Price Report)...");
+        log.info("Starting Price Report mapping...");
         Map<String, BigDecimal> prices = new HashMap<>();
+
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
             Map<String, Integer> colMap = mapHeaders(sheet.getRow(0));
 
-            // CORRECCIÓN BASADA EN TUS LOGS:
-            // Intentar encontrar el ID de la orden
+            // Detect ID column (Flexible for different SAP exports)
             Integer idIdx = colMap.get("Sales Document");
             if (idIdx == null) idIdx = colMap.get("HPE Order");
 
-            // Intentar encontrar el Precio (en tus logs aparece como "Net Value (Item)")
+            // Detect Price column (Flexible for different SAP exports)
             Integer priceIdx = colMap.get("Net Value (Item)");
             if (priceIdx == null) priceIdx = colMap.get("Net Value (Header)");
             if (priceIdx == null) priceIdx = colMap.get("Net Value");
 
-            log.info("Índices detectados - ID: {}, Precio: {}", idIdx, priceIdx);
+            log.info("Indices detected - ID Index: {}, Price Index: {}", idIdx, priceIdx);
 
             if (idIdx == null || priceIdx == null) {
-                log.error("No se pudieron encontrar las columnas necesarias. Cabeceras disponibles: {}", colMap.keySet());
-                return prices;
+                throw new IllegalArgumentException("Required columns (Sales Document/Net Value) are missing in the Price Report.");
             }
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -85,13 +106,17 @@ public class ExcelReader {
                     prices.put(id, price);
                 }
             }
-            log.info("Mapa de precios creado. Registros: {}", prices.size());
+            log.info("Price map created successfully with {} records.", prices.size());
         } catch (Exception e) {
-            log.error("Error en Price Report: {}", e.getMessage());
+            log.error("Critical error parsing Price Report: {}", e.getMessage());
+            throw new IllegalArgumentException("Failed to process Price Report: " + e.getMessage());
         }
         return prices;
     }
 
+    /**
+     * Safely reads an SAP ID (usually a long number) as a String.
+     */
     private String readSapId(Row row, Integer index) {
         if (index == null) return "";
         Cell cell = row.getCell(index);
@@ -103,6 +128,9 @@ public class ExcelReader {
         return formatter.formatCellValue(cell).trim();
     }
 
+    /**
+     * Maps Excel headers to their respective column indices.
+     */
     private Map<String, Integer> mapHeaders(Row headerRow) {
         Map<String, Integer> map = new HashMap<>();
         if (headerRow == null) return map;
@@ -129,7 +157,6 @@ public class ExcelReader {
     }
 
     public boolean isPriceReport(MultipartFile file) {
-        // En tus logs, el price report tiene "Sales Document"
         return checkHeader(file, "Sales Document") || checkHeader(file, "Net Value (Item)");
     }
 

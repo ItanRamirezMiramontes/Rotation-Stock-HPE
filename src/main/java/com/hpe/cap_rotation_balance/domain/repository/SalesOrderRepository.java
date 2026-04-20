@@ -10,14 +10,13 @@ import java.util.List;
 @Repository
 public interface SalesOrderRepository extends JpaRepository<SalesOrder, String> {
 
-    /**
-     * Busca todas las órdenes que se encuentran en un estado específico.
-     * Útil para el proceso de confirmación de ingesta.
-     */
+
     List<SalesOrder> findByStage(IngestionStage stage);
 
     List<SalesOrder> findByCustomer_CustomerId(String customerId);
 
-    // Opcional: Si quieres contar cuántas órdenes hay en cierto estado
+    List<SalesOrder> findByCustomer_CustomerIdAndFiscalQuarterAndFiscalYear(
+            String customerId, String fiscalQuarter, Integer fiscalYear);
+
     long countByStage(IngestionStage stage);
 }

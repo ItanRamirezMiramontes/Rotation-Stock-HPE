@@ -20,7 +20,6 @@ public class IngestionSession {
     private IngestionStage stage;
     private List<ExcelOrderDTO> rawOrders;
 
-    // CAMBIO: Debe ser BigDecimal para coincidir con la lógica de negocio
     private Map<String, BigDecimal> priceMap;
     private LocalDateTime lastUpdate;
 

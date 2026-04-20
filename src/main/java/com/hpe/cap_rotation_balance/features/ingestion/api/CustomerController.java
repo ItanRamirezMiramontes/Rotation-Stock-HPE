@@ -4,13 +4,12 @@ import com.hpe.cap_rotation_balance.domain.entity.Customer;
 import com.hpe.cap_rotation_balance.domain.entity.SalesOrder;
 import com.hpe.cap_rotation_balance.domain.repository.CustomerRepository;
 import com.hpe.cap_rotation_balance.domain.repository.SalesOrderRepository;
+import com.hpe.cap_rotation_balance.features.ingestion.dto.CapBalanceDTO;
+import com.hpe.cap_rotation_balance.features.ingestion.service.BalanceService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -24,6 +23,7 @@ public class CustomerController {
 
     private final CustomerRepository customerRepository;
     private final SalesOrderRepository salesOrderRepository;
+    private final BalanceService balanceService;
 
     /**
      * Retrieves all customers loaded in the system.
@@ -70,5 +70,12 @@ public class CustomerController {
         }
 
         return ResponseEntity.ok(orders);
+    }
+    @GetMapping("/{id}/balance")
+    public ResponseEntity<CapBalanceDTO> getBalance(
+            @PathVariable String id,
+            @RequestParam String quarter,
+            @RequestParam int year) {
+        return ResponseEntity.ok(balanceService.getCustomerBalance(id, quarter, year));
     }
 }
