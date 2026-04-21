@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Órdenes — CAP Rotation Balance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Metric:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="4" fill="#01A982"/>
+        <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
+      </svg>
+      <span class="navbar-title">CAP Rotation Balance</span>
+    </div>
+    <ul class="navbar-links">
+      <li><a href="/ingestion.html" class="nav-link">Carga de Archivos</a></li>
+      <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
+      <li><a href="/orders.html" class="nav-link active">Órdenes</a></li>
+    </ul>
+    <div class="navbar-user"><span class="user-badge">INT</span></div>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div>
+        <div class="page-eyebrow">Repositorio</div>
+        <h1 class="page-title">Todas las Órdenes</h1>
+        <p class="page-subtitle">Listado paginado de Sales Orders. 10 registros por página, ordenados por HPE Order ID.</p>
+      </div>
+      <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+        <div class="search-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="form-control" type="text" id="search-input" placeholder="Filtrar por ID, cliente, SKU…" style="min-width:240px;" />
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          Actualizar
+        </button>
+        <button class="btn btn-ghost btn-sm" id="btn-export-orders" title="Próximamente">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar
+          <span class="badge badge-yellow" style="font-size:0.65rem;">Pronto</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STATS BAR -->
+    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:1.5rem;">
+      <div class="stat-card">
+        <div class="stat-label">Total de Órdenes</div>
+        <div class="stat-value" id="total-orders">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Página Actual</div>
+        <div class="stat-value blue" id="current-page-stat">1</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total de Páginas</div>
+        <div class="stat-value" id="total-pages-stat">—</div>
+      </div>
+    </div>
+
+    <!-- TABLE CARD -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Sales Orders</span>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <span class="text-muted" id="range-label" style="font-size:0.8rem;"></span>
+          <span class="spinner" id="table-spinner" style="display:none;"></span>
+        </div>
+      </div>
+
+      <div id="table-container">
+        <div class="empty-state">
+          <div class="spinner" style="width:30px;height:30px;margin:0 auto 1rem;"></div>
+          <div class="empty-title">Cargando órdenes…</div>
+        </div>
+      </div>
+
+      <div style="padding:1rem 1.25rem; border-top:1px solid var(--border);">
+        <div class="flex-between" style="flex-wrap:wrap; gap:0.75rem;">
+          <span class="text-muted" id="page-info" style="font-size:0.82rem;"></span>
+          <div class="pagination" id="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <span>© 2026 Hewlett Packard Enterprise · CAP Rotation Balance · Uso Interno</span>
+  </footer>
+
+  <div id="toast-container"></div>
+
+  <script src="/js/main.js"></script>
+  <script>
+    const API_BASE = 'http://localhost:8082';
+
+    let currentPage    = 0;
+    let totalPages     = 0;
+    let totalElements  = 0;
+    let allOrders      = [];
+    let filteredOrders = [];
+    let filterTerm     = '';
+
+    // ── FETCH PAGE ───────────────────────────────
+    async function fetchOrders(page = 0) {
+      document.getElementById('table-spinner').style.display = 'inline-block';
+
+      try {
+        const res = await fetch(`${API_BASE}/orders?page=${page}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        // Spring Page object
+        allOrders      = data.content || (Array.isArray(data) ? data : []);
+        totalPages     = data.totalPages || 1;
+        totalElements  = data.totalElements || allOrders.length;
+        currentPage    = data.number ?? page;
+
+        applyFilter();
+        updateStats();
+        renderPagination();
+
+      } catch (err) {
+        document.getElementById('table-container').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <div class="empty-title">No se pudieron cargar las órdenes</div>
+            <div class="empty-sub">${err.message}</div>
+          </div>`;
+        showToast('Error al cargar órdenes: ' + err.message, 'error');
+      }
+
+      document.getElementById('table-spinner').style.display = 'none';
+    }
+
+    // ── FILTER ───────────────────────────────────
+    const searchInput = document.getElementById('search-input');
+    searchInput.addEventListener('input', () => {
+      filterTerm = searchInput.value.toLowerCase();
+      applyFilter();
+    });
+
+    function applyFilter() {
+      if (!filterTerm) {
+        filteredOrders = allOrders;
+      } else {
+        filteredOrders = allOrders.filter(o =>
+          Object.values(o).some(v => String(v).toLowerCase().includes(filterTerm))
+        );
+      }
+      renderTable(filteredOrders);
+    }
+
+    // ── RENDER TABLE ─────────────────────────────
+    function renderTable(orders) {
+      const container = document.getElementById('table-container');
+
+      if (!orders.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <div class="empty-title">No hay órdenes</div>
+            <div class="empty-sub">${filterTerm ? 'Ningún resultado coincide con "' + filterTerm + '"' : 'La base de datos está vacía. Sube archivos Excel primero.'}</div>
+          </div>`;
+        return;
+      }
+
+      const cols = Object.keys(orders[0]);
+      const colLabels = {
+        hpeOrderId: 'HPE Order ID', orderId: 'Order ID', id: 'ID',
+        customerId: 'Cliente', customerName: 'Nombre Cliente',
+        productSku: 'SKU', sku: 'SKU', description: 'Descripción',
+        quantity: 'Qty', unitPrice: 'Precio Unit.', totalPrice: 'Total',
+        orderDate: 'Fecha', status: 'Estado', notes: 'Notas'
+      };
+
+      const isMonoCol = c => ['hpeOrderId','orderId','id','productSku','sku'].includes(c);
+      const isPriceCol = c => ['unitPrice','totalPrice','price','amount'].includes(c);
+      const isStatusCol = c => c === 'status' || c === 'state';
+
+      container.innerHTML = `
+        <div class="table-wrapper" style="border:none; border-radius:0;">
+          <table>
+            <thead>
+              <tr>
+                ${cols.map(c => `<th>${colLabels[c] || c}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${orders.map(o => `
+                <tr>
+                  ${cols.map(c => {
+                    const v = o[c];
+                    if (isStatusCol(c)) return `<td><span class="badge ${statusBadge(v)}">${v ?? '—'}</span></td>`;
+                    if (isMonoCol(c))   return `<td class="td-mono">${highlight(v, filterTerm)}</td>`;
+                    if (isPriceCol(c))  return `<td>$${Number(v || 0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>`;
+                    if (c === 'orderDate') return `<td>${formatDate(v)}</td>`;
+                    return `<td>${highlight(v ?? '—', filterTerm)}</td>`;
+                  }).join('')}
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+
+      const start = currentPage * 10 + 1;
+      const end   = Math.min(start + orders.length - 1, totalElements);
+      document.getElementById('range-label').textContent = `${start}–${end} de ${totalElements}`;
+      document.getElementById('page-info').textContent   = `Página ${currentPage + 1} de ${totalPages} · ${totalElements} órdenes en total`;
+    }
+
+    // ── STATS ────────────────────────────────────
+    function updateStats() {
+      document.getElementById('total-orders').textContent      = totalElements.toLocaleString();
+      document.getElementById('current-page-stat').textContent = currentPage + 1;
+      document.getElementById('total-pages-stat').textContent  = totalPages;
+    }
+
+    // ── PAGINATION ───────────────────────────────
+    function renderPagination() {
+      const container = document.getElementById('pagination');
+      container.innerHTML = '';
+
+      // Prev
+      const prev = makePageBtn('‹', currentPage === 0, () => fetchOrders(currentPage - 1));
+      container.appendChild(prev);
+
+      // Page numbers — show window around current
+      const range = pageRange(currentPage, totalPages);
+      range.forEach(p => {
+        if (p === '…') {
+          const el = document.createElement('span');
+          el.className = 'page-btn';
+          el.style.border = 'none';
+          el.textContent = '…';
+          container.appendChild(el);
+        } else {
+          const btn = makePageBtn(p + 1, false, () => fetchOrders(p));
+          if (p === currentPage) btn.classList.add('active');
+          container.appendChild(btn);
+        }
+      });
+
+      // Next
+      const next = makePageBtn('›', currentPage >= totalPages - 1, () => fetchOrders(currentPage + 1));
+      container.appendChild(next);
+    }
+
+    function makePageBtn(label, disabled, onClick) {
+      const btn = document.createElement('button');
+      btn.className = 'page-btn';
+      btn.textContent = label;
+      btn.disabled = disabled;
+      if (!disabled) btn.addEventListener('click', onClick);
+      return btn;
+    }
+
+    function pageRange(current, total) {
+      if (total <= 7) return Array.from({length: total}, (_, i) => i);
+      const pages = [];
+      if (current > 2) pages.push(0, '…');
+      else pages.push(0, 1);
+      for (let i = Math.max(1, current - 1); i <= Math.min(total - 2, current + 1); i++) pages.push(i);
+      if (current < total - 3) pages.push('…', total - 1);
+      else pages.push(total - 2, total - 1);
+      return [...new Set(pages)];
+    }
+
+    // ── HELPERS ─────────────────────────────────
+    function statusBadge(s) {
+      if (!s) return 'badge-gray';
+      const st = s.toLowerCase();
+      if (st.includes('confirm') || st.includes('complet') || st.includes('ok') || st.includes('activ')) return 'badge-green';
+      if (st.includes('pend') || st.includes('process')) return 'badge-yellow';
+      if (st.includes('cancel') || st.includes('error')  || st.includes('fail')) return 'badge-red';
+      return 'badge-blue';
+    }
+
+    function formatDate(val) {
+      if (!val) return '—';
+      try {
+        return new Date(val).toLocaleDateString('es-MX', {year:'numeric', month:'short', day:'2-digit'});
+      } catch { return val; }
+    }
+
+    function highlight(val, term) {
+      if (!term || !val) return val ?? '—';
+      const s = String(val);
+      const idx = s.toLowerCase().indexOf(term);
+      if (idx === -1) return s;
+      return s.slice(0, idx) +
+        `<mark style="background:rgba(1,169,130,0.2);border-radius:2px;padding:0 1px;">${s.slice(idx, idx + term.length)}</mark>` +
+        s.slice(idx + term.length);
+    }
+
+    function showToast(msg, type = 'success') {
+      const t = document.createElement('div');
+      t.className = `toast ${type === 'error' ? 'error' : ''}`;
+      const color = type === 'error' ? '#E8382D' : '#01A982';
+      const icon  = type === 'error'
+        ? '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/>'
+        : '<polyline points="20 6 9 17 4 12"/>';
+      t.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5">${icon}</svg><span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    // ── ACTIONS ──────────────────────────────────
+    document.getElementById('btn-refresh').addEventListener('click', () => fetchOrders(currentPage));
+    document.getElementById('btn-export-orders').addEventListener('click', () => showToast('Exportación próximamente disponible', 'warning'));
+
+    // ── INIT ─────────────────────────────────────
+    fetchOrders(0);
+  </script>
+</body>
+</html>
