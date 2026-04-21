@@ -4,8 +4,9 @@ import lombok.Getter;
 
 @Getter
 public enum OrderStatus {
+    INV(""),
     OPEN("OPEN"),
-    CANC("CANC"), // Añadimos este específicamente para SAP
+    CANC("CANC"),
     COMP("COMP"), // Por si llega Completed abreviado
     UNKNOWN("UNKNOWN");
 

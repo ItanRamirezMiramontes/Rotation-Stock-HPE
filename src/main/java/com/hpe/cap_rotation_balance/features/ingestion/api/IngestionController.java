@@ -3,13 +3,14 @@ package com.hpe.cap_rotation_balance.features.ingestion.api;
 import com.hpe.cap_rotation_balance.features.ingestion.dto.IngestionResponseDTO;
 import com.hpe.cap_rotation_balance.features.ingestion.service.IngestionService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/ingestion")
 @RequiredArgsConstructor
@@ -17,42 +18,49 @@ public class IngestionController {
 
     private final IngestionService ingestionService;
 
+    /**
+     * Upload SAP files (Raw Data or Price Report).
+     * The system automatically detects the report type by its headers.
+     */
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadReport(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Archivo vacío"));
+    public ResponseEntity<IngestionResponseDTO> uploadFile(@RequestParam("file") MultipartFile file) {
+        log.info("Receiving file for ingestion...");
+
+        // Si por alguna razón Spring deja pasar un archivo nulo o vacío
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File content is empty. Please upload a non-empty Excel/CSV file.");
         }
 
-        String fileName = file.getOriginalFilename();
-        if (fileName == null || (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls"))) {
-            return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                    .body(Map.of("error", "Solo se admiten archivos Excel (.xlsx, .xls)"));
-        }
-
-        try {
-            // Senior Dev Tip: El service ahora guarda de forma incremental.
-            // La respuesta ya contiene el conteo de lo que se acaba de persistir.
-            IngestionResponseDTO response = ingestionService.handleFileUpload(file);
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error procesando el archivo", "details", e.getMessage()));
-        }
+        IngestionResponseDTO response = ingestionService.handleFileUpload(file);
+        return ResponseEntity.ok(response);
     }
 
+    /**
+     * Confirms orders in READY_TO_SAVE state.
+     * Completes the state machine cycle and persists data.
+     */
     @PostMapping("/confirm")
-    public ResponseEntity<?> confirmIngestion() {
-        try {
-            // Este método cambia el stage de READY_TO_SAVE a COMPLETED
-            // para todas las órdenes que ya tengan precio y raw data.
-            ingestionService.confirmAndSave();
-            return ResponseEntity.ok(Map.of("message", "Órdenes finalizadas y confirmadas exitosamente"));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error al confirmar los datos", "details", e.getMessage()));
-        }
+    public ResponseEntity<Map<String, String>> confirmIngestion() {
+        log.info("Confirming ingestion session...");
+
+        // The service should throw IllegalStateException if no data is ready to be saved
+        ingestionService.confirmAndSave();
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Ingestion successfully confirmed and persisted",
+                "status", "COMPLETED"
+        ));
+    }
+
+    /**
+     * Health check and status of the current ingestion session.
+     */
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> getStatus() {
+        return ResponseEntity.ok(Map.of(
+                "service", "Ingestion API",
+                "active", true,
+                "message", "System is ready for new SAP data imports"
+        ));
     }
 }

@@ -61,6 +61,9 @@ public class SalesOrder {
     @JsonIgnoreProperties({"orders", "hibernateLazyInitializer", "handler"})
     private Customer customer;
 
+    @Enumerated(EnumType.STRING)
+    private InternalStatus internalStatus;
+
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 

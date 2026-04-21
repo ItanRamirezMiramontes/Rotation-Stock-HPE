@@ -3,6 +3,8 @@ package com.hpe.cap_rotation_balance.domain.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,4 +30,7 @@ public class Customer {
     @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<SalesOrder> orders = new ArrayList<>();
+
+    @Column
+    private BigDecimal capPercentage;
 }

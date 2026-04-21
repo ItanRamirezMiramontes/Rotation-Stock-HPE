@@ -3,6 +3,8 @@ package com.hpe.cap_rotation_balance.features.ingestion.mapper;
 import com.hpe.cap_rotation_balance.domain.entity.SalesOrder;
 import com.hpe.cap_rotation_balance.domain.enums.*;
 import com.hpe.cap_rotation_balance.features.ingestion.dto.ExcelOrderDTO;
+import com.hpe.cap_rotation_balance.features.rotation_logic.service.FiscalEngine;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -11,79 +13,104 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
-@Slf4j
+/**
+ * Component responsible for mapping Raw Data from Excel DTOs to the SalesOrder Entity.
+ * Handles complex data transformations such as Date parsing based on SORG regions
+ * and Fiscal Calendar calculations.
+ */
 @Component
+@RequiredArgsConstructor
+@Slf4j
 public class OrderMapper {
 
+    private final FiscalEngine fiscalEngine;
+
+    /**
+     * Updates an existing or new SalesOrder entity with data from the Raw Data Excel report.
+     * * @param order The SalesOrder entity to be updated.
+     * @param dto   The data transfer object containing raw Excel values.
+     */
     public void updateRawData(SalesOrder order, ExcelOrderDTO dto) {
-        // 1. FECHA (Arreglo '1/31/26')
+        // 1. Basic Identifiers (Trimming to ensure clean IDs for DB lookups)
+        String cleanId = (dto.orderId() != null) ? dto.orderId().trim() : null;
+        order.setHpeOrderId(cleanId);
+
+        order.setCustPoRef(dto.custPoRef() != null ? dto.custPoRef().trim() : null);
+        order.setOrderType(OrderType.fromString(dto.type()));
+        order.setOrderReason(dto.orderReasonCode());
+
+        // 2. Dates and Fiscal Periods
         LocalDate entryDate = parseDate(dto.entryDate(), dto.sorg());
         if (entryDate != null) {
             order.setEntryDate(entryDate);
-            order.setFiscalQuarter(calculateHpeQuarter(entryDate));
-            order.setFiscalYear(calculateFiscalYear(entryDate));
-        }
-
-        // 2. IDENTIFICADORES (Solo actualiza si no es null en el DTO)
-        if (dto.orderId() != null && !dto.orderId().isBlank()) order.setHpeOrderId(dto.orderId());
-        if (dto.custPoRef() != null) order.setCustPoRef(dto.custPoRef());
-        if (dto.omRegion() != null) order.setOmRegion(dto.omRegion());
-        if (dto.sorg() != null) order.setSorg(dto.sorg());
-
-        // 3. LOCALIZACIÓN (Sales Office y Sales Group)
-        // Agregamos un log para ver qué llega exactamente del Excel para esa orden
-        if ("7070070371".equals(dto.orderId())) {
-            log.info("DEBUG ORDEN 371: Office del DTO: '{}', Group del DTO: '{}'",
-                    dto.salesOffice(), dto.salesGroup());
-        }
-
-        // Cambiamos la lógica: Si viene nulo o vacío en el DTO,
-        // pero el Excel SÍ tiene el dato, es que el Reader está fallando.
-        // Si el DTO trae algo, lo seteamos siempre.
-        if (dto.salesOffice() != null && !dto.salesOffice().isBlank()) {
-            order.setSalesOffice(dto.salesOffice());
+            order.setFiscalQuarter(fiscalEngine.calculateQuarter(entryDate));
+            order.setFiscalYear(fiscalEngine.calculateFiscalYear(entryDate));
         } else {
-            // Opcional: Si quieres que se guarde el null explícitamente si el Excel está vacío
-            // order.setSalesOffice(null);
+            log.warn("Could not parse date '{}' for order ID: {}", dto.entryDate(), cleanId);
         }
 
-        if (dto.salesGroup() != null && !dto.salesGroup().isBlank()) {
-            order.setSalesGroup(dto.salesGroup());
-        }
+        // 3. Sales Structure
+        order.setOmRegion(dto.omRegion());
+        order.setSorg(dto.sorg());
+        order.setSalesOffice(dto.salesOffice());
+        order.setSalesGroup(dto.salesGroup());
 
-        // 4. ENUMS Y PRECIO
-        order.setOrderReason("SAP Ingestion");
-        order.setHeaderStatus(OrderStatus.fromString(dto.headerStatus()));
-        order.setOrderType(OrderType.fromString(dto.type()));
+        // 4. Logistics & Shipping
+        order.setRtm(dto.rtm());
+        order.setShipToAddress(dto.shipToAddress());
 
+        // 5. Header Status Mapping
+        order.setHeaderStatus(mapSapStatus(dto.headerStatus()));
+
+        // 6. Currency Validation
         if (dto.currency() != null && !dto.currency().isBlank()) {
             try {
                 order.setCurrency(Currency.valueOf(dto.currency().trim().toUpperCase()));
-            } catch (Exception e) {
-                log.warn("Moneda no válida: {}", dto.currency());
+            } catch (IllegalArgumentException e) {
+                log.error("Unrecognized currency code: {}. Defaulting to null.", dto.currency());
             }
         }
 
-        BigDecimal rawPrice = parseNetValue(dto.netValue());
-        if (order.getNetValueItem() == null || order.getNetValueItem().compareTo(BigDecimal.ZERO) == 0) {
-            order.setNetValueItem(rawPrice);
-        }
+        // Note: netValueItem is NOT modified here.
+        // It is preserved until the Price Report ingestion process.
     }
 
+    /**
+     * Maps SAP Status strings (INV, OPN, CANC) to internal OrderStatus enum.
+     */
+    private OrderStatus mapSapStatus(String status) {
+        if (status == null || status.isBlank()) return OrderStatus.UNKNOWN;
+        String s = status.trim().toUpperCase();
+        return switch (s) {
+            case "INV", "FULLY INVOICED", "INVOICED" -> OrderStatus.INV;
+            case "OPEN", "PROCESSING", "OPN" -> OrderStatus.OPEN;
+            case "CANC", "CANCELLED", "CNCL" -> OrderStatus.CANC;
+            default -> OrderStatus.UNKNOWN;
+        };
+    }
+
+    /**
+     * Sophisticated date parser that handles:
+     * 1. Excel Serial Numbers (e.g., 45230).
+     * 2. Regional formats (MM/DD/YYYY for US/CA, DD/MM/YYYY for others) based on SORG.
+     */
     private LocalDate parseDate(String raw, String sorg) {
         if (raw == null || raw.isBlank()) return null;
         String cleanRaw = raw.trim();
 
+        // Handle Excel Serial Dates (numeric strings)
         if (cleanRaw.matches("\\d+(\\.\\d+)?")) {
             try {
                 return LocalDate.of(1899, 12, 30).plusDays((long) Double.parseDouble(cleanRaw));
             } catch (Exception ignored) {}
         }
 
+        // Determine date logic based on Sales Organization (SORG)
         boolean isNorthAmerica = (sorg != null && (sorg.startsWith("US") || sorg.startsWith("CA")));
+
         String[] patterns = isNorthAmerica
-                ? new String[]{"M/d/yy", "MM/dd/yy", "M/d/yyyy", "MM/dd/yyyy", "yyyy-MM-dd"}
-                : new String[]{"d/M/yy", "dd/MM/yy", "d/M/yyyy", "dd/MM/yyyy", "yyyy-MM-dd"};
+                ? new String[]{"M/d/yy", "MM/dd/yy", "M/d/yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "MM-dd-yyyy"}
+                : new String[]{"d/M/yy", "dd/MM/yy", "d/M/yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "dd-MM-yyyy"};
 
         for (String pattern : patterns) {
             try {
@@ -97,25 +124,17 @@ public class OrderMapper {
         return null;
     }
 
-    private FiscalQuarter calculateHpeQuarter(LocalDate date) {
-        if (date == null) return null;
-        int m = date.getMonthValue();
-        if (m == 11 || m == 12 || m == 1) return FiscalQuarter.Q1;
-        if (m >= 2 && m <= 4) return FiscalQuarter.Q2;
-        if (m >= 5 && m <= 7) return FiscalQuarter.Q3;
-        return FiscalQuarter.Q4;
-    }
-
-    private Integer calculateFiscalYear(LocalDate date) {
-        if (date == null) return null;
-        return (date.getMonthValue() >= 11) ? date.getYear() + 1 : date.getYear();
-    }
-
-    private BigDecimal parseNetValue(String value) {
+    /**
+     * Utility to clean and parse monetary values from Excel strings.
+     * Removes currency symbols, commas, and whitespace.
+     */
+    public BigDecimal parseNetValue(String value) {
         if (value == null || value.isBlank()) return BigDecimal.ZERO;
         try {
-            return new BigDecimal(value.replaceAll("[^\\d.-]", ""));
+            String cleaned = value.replaceAll("[^\\d.-]", "");
+            return new BigDecimal(cleaned);
         } catch (Exception e) {
+            log.error("Error parsing monetary value: {}. Returning ZERO.", value);
             return BigDecimal.ZERO;
         }
     }
