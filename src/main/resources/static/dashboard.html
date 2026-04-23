@@ -1,206 +1,206 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard — CAP Rotation Balance</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Metric:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — CAP Rotation Balance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Metric:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
+<!-- NAVBAR -->
+<nav class="navbar">
     <div class="navbar-brand">
-      <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="48" height="48" rx="4" fill="#01A982"/>
-        <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
-      </svg>
-      <span class="navbar-title">CAP Rotation Balance</span>
+        <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="48" height="48" rx="4" fill="#01A982"/>
+            <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
+        </svg>
+        <span class="navbar-title">CAP Rotation Balance</span>
     </div>
     <ul class="navbar-links">
-      <li><a href="/ingestion.html" class="nav-link">Carga de Archivos</a></li>
-      <li><a href="/dashboard.html" class="nav-link active">Dashboard</a></li>
-      <li><a href="/orders.html" class="nav-link">Órdenes</a></li>
+        <li><a href="/ingestion.html" class="nav-link">Carga de Archivos</a></li>
+        <li><a href="/dashboard.html" class="nav-link active">Dashboard</a></li>
+        <li><a href="/orders.html" class="nav-link">Órdenes</a></li>
     </ul>
     <div class="navbar-user"><span class="user-badge">INT</span></div>
-  </nav>
+</nav>
 
-  <main class="main-content">
+<main class="main-content">
 
     <!-- PAGE HEADER -->
     <div class="page-header">
-      <div>
-        <div class="page-eyebrow">Análisis</div>
-        <h1 class="page-title">Dashboard de Balances</h1>
-        <p class="page-subtitle">Consulta clientes, sus órdenes y calcula el CAP de rotación.</p>
-      </div>
-      <div style="display:flex; gap:0.5rem;">
-        <button class="btn btn-ghost" id="btn-export-placeholder" title="Funcionalidad próximamente disponible">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exportar Excel
-          <span class="badge badge-yellow" style="margin-left:0.25rem; font-size:0.65rem;">Pronto</span>
-        </button>
-      </div>
+        <div>
+            <div class="page-eyebrow">Análisis</div>
+            <h1 class="page-title">Dashboard de Balances</h1>
+            <p class="page-subtitle">Consulta clientes, sus órdenes y calcula el CAP de rotación.</p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <button class="btn btn-ghost" id="btn-export-placeholder" title="Funcionalidad próximamente disponible">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+                <span class="badge badge-yellow" style="margin-left:0.25rem; font-size:0.65rem;">Pronto</span>
+            </button>
+        </div>
     </div>
 
     <!-- STATS ROW -->
     <div class="stats-grid" id="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Órdenes</div>
-        <div class="stat-value" id="stat-orders">—</div>
-        <div class="stat-change">En base de datos</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">CAP Total</div>
-        <div class="stat-value green" id="stat-cap">—</div>
-        <div class="stat-change">Cliente seleccionado</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Órdenes del Cliente</div>
-        <div class="stat-value blue" id="stat-customer-orders">—</div>
-        <div class="stat-change">Cliente seleccionado</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Rotación Promedio</div>
-        <div class="stat-value" id="stat-rotation">—</div>
-        <div class="stat-change">Cliente seleccionado</div>
-      </div>
+        <div class="stat-card">
+            <div class="stat-label">Total Órdenes</div>
+            <div class="stat-value" id="stat-orders">—</div>
+            <div class="stat-change">En base de datos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">CAP Total</div>
+            <div class="stat-value green" id="stat-cap">—</div>
+            <div class="stat-change">Cliente seleccionado</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Órdenes del Cliente</div>
+            <div class="stat-value blue" id="stat-customer-orders">—</div>
+            <div class="stat-change">Cliente seleccionado</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Rotación Promedio</div>
+            <div class="stat-value" id="stat-rotation">—</div>
+            <div class="stat-change">Cliente seleccionado</div>
+        </div>
     </div>
 
     <div class="grid-2" style="align-items:start;">
 
-      <!-- LEFT: CUSTOMER SEARCH -->
-      <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        <!-- LEFT: CUSTOMER SEARCH -->
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
 
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Buscar Cliente</span>
-          </div>
-          <div class="card-body">
-            <div class="form-group">
-              <label class="form-label">ID de Cliente</label>
-              <div style="display:flex; gap:0.5rem;">
-                <input type="text" class="form-control" id="customer-id-input" placeholder="Ej: CUST-0042" />
-                <button class="btn btn-primary" id="btn-search-customer">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  Buscar
-                </button>
-              </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Buscar Cliente</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">ID de Cliente</label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="text" class="form-control" id="customer-id-input" placeholder="Ej: CUST-0042" />
+                            <button class="btn btn-primary" id="btn-search-customer">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                Buscar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Customer Result Card -->
+                    <div id="customer-result" style="display:none;">
+                        <div class="divider"></div>
+                        <div style="background:var(--bg-base); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem;">
+                            <div class="flex-between mb-2">
+                                <span class="stat-label">Cliente Encontrado</span>
+                                <span class="badge badge-green">Activo</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                <div>
+                                    <div class="stat-label">ID</div>
+                                    <div class="text-mono" id="c-id">—</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">Nombre</div>
+                                    <div style="font-weight:500;" id="c-name">—</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">Email</div>
+                                    <div class="text-mono" id="c-email" style="font-size:0.8rem;">—</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">País</div>
+                                    <div id="c-country">—</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:0.85rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                <button class="btn btn-secondary btn-sm" id="btn-load-orders">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                    Ver Órdenes
+                                </button>
+                                <button class="btn btn-primary btn-sm" id="btn-calc-cap">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 3h18v18H3z"/><path d="M8 12h8M12 8v8"/></svg>
+                                    Calcular CAP
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="customer-not-found" style="display:none;">
+                        <div class="divider"></div>
+                        <div class="alert alert-error">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+                            Cliente no encontrado. Verifica el ID.
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Customer Result Card -->
-            <div id="customer-result" style="display:none;">
-              <div class="divider"></div>
-              <div style="background:var(--bg-base); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem;">
-                <div class="flex-between mb-2">
-                  <span class="stat-label">Cliente Encontrado</span>
-                  <span class="badge badge-green">Activo</span>
+            <!-- CAP RESULT -->
+            <div class="card" id="cap-card" style="display:none;">
+                <div class="card-header">
+                    <span class="card-title">Resultado CAP</span>
+                    <span class="badge badge-green">Calculado</span>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                  <div>
-                    <div class="stat-label">ID</div>
-                    <div class="text-mono" id="c-id">—</div>
-                  </div>
-                  <div>
-                    <div class="stat-label">Nombre</div>
-                    <div style="font-weight:500;" id="c-name">—</div>
-                  </div>
-                  <div>
-                    <div class="stat-label">Email</div>
-                    <div class="text-mono" id="c-email" style="font-size:0.8rem;">—</div>
-                  </div>
-                  <div>
-                    <div class="stat-label">País</div>
-                    <div id="c-country">—</div>
-                  </div>
+                <div class="card-body">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div style="text-align:center; padding:1rem; background:var(--hpe-green-light); border-radius:var(--radius-sm);">
+                            <div class="stat-label">CAP Total</div>
+                            <div class="stat-value green" id="cap-total">—</div>
+                        </div>
+                        <div style="text-align:center; padding:1rem; background:#E0F2FC; border-radius:var(--radius-sm);">
+                            <div class="stat-label">Rotación</div>
+                            <div class="stat-value blue" id="cap-rotation">—</div>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:120px;">
+                            <div class="stat-label">Balance Actual</div>
+                            <div style="font-weight:500; font-size:1.05rem;" id="cap-balance">—</div>
+                        </div>
+                        <div style="flex:1; min-width:120px;">
+                            <div class="stat-label">Período</div>
+                            <div style="font-weight:500;" id="cap-period">—</div>
+                        </div>
+                    </div>
                 </div>
-                <div style="margin-top:0.85rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-                  <button class="btn btn-secondary btn-sm" id="btn-load-orders">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    Ver Órdenes
-                  </button>
-                  <button class="btn btn-primary btn-sm" id="btn-calc-cap">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 3h18v18H3z"/><path d="M8 12h8M12 8v8"/></svg>
-                    Calcular CAP
-                  </button>
-                </div>
-              </div>
             </div>
 
-            <div id="customer-not-found" style="display:none;">
-              <div class="divider"></div>
-              <div class="alert alert-error">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
-                Cliente no encontrado. Verifica el ID.
-              </div>
-            </div>
-          </div>
         </div>
 
-        <!-- CAP RESULT -->
-        <div class="card" id="cap-card" style="display:none;">
-          <div class="card-header">
-            <span class="card-title">Resultado CAP</span>
-            <span class="badge badge-green">Calculado</span>
-          </div>
-          <div class="card-body">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-              <div style="text-align:center; padding:1rem; background:var(--hpe-green-light); border-radius:var(--radius-sm);">
-                <div class="stat-label">CAP Total</div>
-                <div class="stat-value green" id="cap-total">—</div>
-              </div>
-              <div style="text-align:center; padding:1rem; background:#E0F2FC; border-radius:var(--radius-sm);">
-                <div class="stat-label">Rotación</div>
-                <div class="stat-value blue" id="cap-rotation">—</div>
-              </div>
+        <!-- RIGHT: ORDERS TABLE -->
+        <div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" id="orders-panel-title">Órdenes del Cliente</span>
+                    <span class="badge badge-gray" id="orders-count-badge">—</span>
+                </div>
+                <div id="orders-panel-body" style="padding:0;">
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <div class="empty-title">Sin datos cargados</div>
+                        <div class="empty-sub">Busca un cliente y haz clic en "Ver Órdenes"</div>
+                    </div>
+                </div>
             </div>
-            <div class="divider"></div>
-            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-              <div style="flex:1; min-width:120px;">
-                <div class="stat-label">Balance Actual</div>
-                <div style="font-weight:500; font-size:1.05rem;" id="cap-balance">—</div>
-              </div>
-              <div style="flex:1; min-width:120px;">
-                <div class="stat-label">Período</div>
-                <div style="font-weight:500;" id="cap-period">—</div>
-              </div>
-            </div>
-          </div>
         </div>
-
-      </div>
-
-      <!-- RIGHT: ORDERS TABLE -->
-      <div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title" id="orders-panel-title">Órdenes del Cliente</span>
-            <span class="badge badge-gray" id="orders-count-badge">—</span>
-          </div>
-          <div id="orders-panel-body" style="padding:0;">
-            <div class="empty-state">
-              <div class="empty-icon">📋</div>
-              <div class="empty-title">Sin datos cargados</div>
-              <div class="empty-sub">Busca un cliente y haz clic en "Ver Órdenes"</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
     </div>
 
-  </main>
+</main>
 
-  <footer class="footer">
+<footer class="footer">
     <span>© 2026 Hewlett Packard Enterprise · CAP Rotation Balance · Uso Interno</span>
-  </footer>
+</footer>
 
-  <div id="toast-container"></div>
+<div id="toast-container"></div>
 
-  <script src="/js/main.js"></script>
-  <script>
+<script src="/js/main.js"></script>
+<script>
     const API_BASE = 'http://localhost:8082';
     let currentCustomerId = null;
     let currentCustomerOrders = [];
@@ -375,6 +375,6 @@
       document.getElementById('toast-container').appendChild(t);
       setTimeout(() => t.remove(), 4000);
     }
-  </script>
+</script>
 </body>
 </html>

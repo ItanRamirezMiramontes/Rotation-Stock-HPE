@@ -5,11 +5,8 @@ import lombok.*;
 import java.time.OffsetDateTime;
 
 @Entity
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter @Setter @Builder
+@NoArgsConstructor @AllArgsConstructor
 public class AuditLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,7 +16,7 @@ public class AuditLog {
     private OffsetDateTime timestamp;
 
     @Column(nullable = false)
-    private String action; // Ejemplo: RAW_INGESTION o PRICE_INGESTION
+    private String action; // Ejemplo: "UPLOAD_RAW_DATA", "UPLOAD_PRICE_REPORT"
 
     private Integer recordsProcessed;
 

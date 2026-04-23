@@ -1,218 +1,218 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Carga de Archivos — CAP Rotation Balance</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Metric:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Carga de Archivos — CAP Rotation Balance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Metric:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
+<!-- NAVBAR -->
+<nav class="navbar">
     <div class="navbar-brand">
-      <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="48" height="48" rx="4" fill="#01A982"/>
-        <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
-      </svg>
-      <span class="navbar-title">CAP Rotation Balance</span>
+        <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="48" height="48" rx="4" fill="#01A982"/>
+            <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
+        </svg>
+        <span class="navbar-title">CAP Rotation Balance</span>
     </div>
     <ul class="navbar-links">
-      <li><a href="/ingestion.html" class="nav-link active">Carga de Archivos</a></li>
-      <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
-      <li><a href="/orders.html" class="nav-link">Órdenes</a></li>
+        <li><a href="/ingestion.html" class="nav-link active">Carga de Archivos</a></li>
+        <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
+        <li><a href="/orders.html" class="nav-link">Órdenes</a></li>
     </ul>
     <div class="navbar-user"><span class="user-badge">INT</span></div>
-  </nav>
+</nav>
 
-  <main class="main-content">
+<main class="main-content">
 
     <!-- PAGE HEADER -->
     <div class="page-header">
-      <div class="page-header-left">
-        <div class="page-eyebrow">Ingesta de Datos</div>
-        <h1 class="page-title">Carga de Archivos Excel</h1>
-        <p class="page-subtitle">Sube uno o más archivos .xlsx para iniciar el proceso de ingesta. Confirma cuando estés listo.</p>
-      </div>
-      <div>
-        <button class="btn btn-primary btn-lg" id="btn-confirm" disabled>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Confirmar Ingesta
-        </button>
-      </div>
+        <div class="page-header-left">
+            <div class="page-eyebrow">Ingesta de Datos</div>
+            <h1 class="page-title">Carga de Archivos Excel</h1>
+            <p class="page-subtitle">Sube uno o más archivos .xlsx para iniciar el proceso de ingesta. Confirma cuando estés listo.</p>
+        </div>
+        <div>
+            <button class="btn btn-primary btn-lg" id="btn-confirm" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Confirmar Ingesta
+            </button>
+        </div>
     </div>
 
     <div class="grid-2" style="align-items: start;">
 
-      <!-- LEFT: DROP ZONE + FILE LIST -->
-      <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        <!-- LEFT: DROP ZONE + FILE LIST -->
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
 
-        <!-- DROP ZONE -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Seleccionar Archivos</span>
-            <span class="badge badge-gray">Múltiples archivos</span>
-          </div>
-          <div class="card-body">
-            <div class="drop-zone" id="drop-zone">
-              <input type="file" id="file-input" accept=".xlsx,.xls" multiple />
-              <svg class="drop-icon" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="52" height="52" rx="10" fill="#E6F7F3"/>
-                <path d="M26 34V18M26 18L20 24M26 18L32 24" stroke="#01A982" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 38h20" stroke="#01A982" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              <div class="drop-label">Arrastra tus archivos aquí</div>
-              <div class="drop-sub">o haz clic para seleccionar · .xlsx / .xls admitidos</div>
-            </div>
-
-            <!-- FILE LIST -->
-            <div class="file-list" id="file-list"></div>
-
-            <!-- UPLOAD ACTION -->
-            <div id="upload-actions" style="display:none; margin-top:1.25rem;">
-              <div class="flex-between gap-1" style="flex-wrap:wrap;">
-                <span class="text-muted" id="files-summary"></span>
-                <div style="display:flex; gap:0.5rem;">
-                  <button class="btn btn-ghost btn-sm" id="btn-clear">Limpiar todo</button>
-                  <button class="btn btn-primary" id="btn-upload">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Subir Archivos
-                  </button>
+            <!-- DROP ZONE -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Seleccionar Archivos</span>
+                    <span class="badge badge-gray">Múltiples archivos</span>
                 </div>
-              </div>
-              <div class="progress-bar-wrap mt-2" id="progress-wrap" style="display:none;">
-                <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
-              </div>
+                <div class="card-body">
+                    <div class="drop-zone" id="drop-zone">
+                        <input type="file" id="file-input" accept=".xlsx,.xls" multiple />
+                        <svg class="drop-icon" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="52" height="52" rx="10" fill="#E6F7F3"/>
+                            <path d="M26 34V18M26 18L20 24M26 18L32 24" stroke="#01A982" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M16 38h20" stroke="#01A982" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <div class="drop-label">Arrastra tus archivos aquí</div>
+                        <div class="drop-sub">o haz clic para seleccionar · .xlsx / .xls admitidos</div>
+                    </div>
+
+                    <!-- FILE LIST -->
+                    <div class="file-list" id="file-list"></div>
+
+                    <!-- UPLOAD ACTION -->
+                    <div id="upload-actions" style="display:none; margin-top:1.25rem;">
+                        <div class="flex-between gap-1" style="flex-wrap:wrap;">
+                            <span class="text-muted" id="files-summary"></span>
+                            <div style="display:flex; gap:0.5rem;">
+                                <button class="btn btn-ghost btn-sm" id="btn-clear">Limpiar todo</button>
+                                <button class="btn btn-primary" id="btn-upload">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    Subir Archivos
+                                </button>
+                            </div>
+                        </div>
+                        <div class="progress-bar-wrap mt-2" id="progress-wrap" style="display:none;">
+                            <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
 
-        <!-- VALIDATION NOTICE -->
-        <div class="alert alert-info" id="alert-info" style="display:none;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div id="alert-info-text"></div>
-        </div>
-
-        <div class="alert alert-error" id="alert-error" style="display:none;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div id="alert-error-text"></div>
-        </div>
-
-      </div>
-
-      <!-- RIGHT: STATUS PANEL + EXPECTED COLUMNS -->
-      <div style="display:flex; flex-direction:column; gap:1.25rem;">
-
-        <!-- UPLOAD RESULTS -->
-        <div class="card" id="results-card" style="display:none;">
-          <div class="card-header">
-            <span class="card-title">Resultado de Carga</span>
-            <span class="badge badge-green" id="results-badge">Procesado</span>
-          </div>
-          <div class="card-body">
-            <div id="results-list" style="display:flex; flex-direction:column; gap:0.75rem;"></div>
-          </div>
-        </div>
-
-        <!-- EXPECTED COLUMNS INFO -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Formato Esperado del Excel</span>
-          </div>
-          <div class="card-body" style="padding:0;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Columna</th>
-                  <th>Tipo</th>
-                  <th>Requerido</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="td-mono">hpeOrderId</td>
-                  <td><span class="badge badge-blue">String</span></td>
-                  <td><span class="badge badge-green">Sí</span></td>
-                </tr>
-                <tr>
-                  <td class="td-mono">customerId</td>
-                  <td><span class="badge badge-blue">String</span></td>
-                  <td><span class="badge badge-green">Sí</span></td>
-                </tr>
-                <tr>
-                  <td class="td-mono">productSku</td>
-                  <td><span class="badge badge-blue">String</span></td>
-                  <td><span class="badge badge-green">Sí</span></td>
-                </tr>
-                <tr>
-                  <td class="td-mono">quantity</td>
-                  <td><span class="badge badge-yellow">Number</span></td>
-                  <td><span class="badge badge-green">Sí</span></td>
-                </tr>
-                <tr>
-                  <td class="td-mono">unitPrice</td>
-                  <td><span class="badge badge-yellow">Decimal</span></td>
-                  <td><span class="badge badge-green">Sí</span></td>
-                </tr>
-                <tr>
-                  <td class="td-mono">orderDate</td>
-                  <td><span class="badge badge-gray">Date</span></td>
-                  <td><span class="badge badge-green">Sí</span></td>
-                </tr>
-                <tr>
-                  <td class="td-mono">status</td>
-                  <td><span class="badge badge-blue">String</span></td>
-                  <td><span class="badge badge-gray">Opcional</span></td>
-                </tr>
-                <tr>
-                  <td class="td-mono">notes</td>
-                  <td><span class="badge badge-blue">String</span></td>
-                  <td><span class="badge badge-gray">Opcional</span></td>
-                </tr>
-              </tbody>
-            </table>
-            <div style="padding:0.85rem 1rem;">
-              <p class="text-muted">Ajusta las columnas de acuerdo a tu entidad <span class="text-mono">SalesOrder</span>. Los archivos de tipo <strong>RAW DATA</strong> y <strong>Price EXPORT</strong> se procesan automáticamente.</p>
+            <!-- VALIDATION NOTICE -->
+            <div class="alert alert-info" id="alert-info" style="display:none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div id="alert-info-text"></div>
             </div>
-          </div>
-        </div>
 
-        <!-- CONFIRM SECTION -->
-        <div class="card" id="confirm-card" style="display:none;">
-          <div class="card-header">
-            <span class="card-title">Confirmar y Guardar</span>
-            <span class="badge badge-yellow">Pendiente</span>
-          </div>
-          <div class="card-body">
-            <p class="text-muted mb-2">Los datos han sido cargados y están listos para ser confirmados en base de datos. Esta acción es irreversible.</p>
-            <div class="flex-between" style="flex-wrap:wrap; gap:0.5rem;">
-              <div>
-                <div class="stat-label">Registros listos</div>
-                <div class="stat-value green" id="confirm-count">—</div>
-              </div>
-              <button class="btn btn-primary" id="btn-confirm-2" disabled>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                Confirmar Ingesta
-              </button>
+            <div class="alert alert-error" id="alert-error" style="display:none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div id="alert-error-text"></div>
             </div>
-          </div>
+
         </div>
 
-      </div>
+        <!-- RIGHT: STATUS PANEL + EXPECTED COLUMNS -->
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+            <!-- UPLOAD RESULTS -->
+            <div class="card" id="results-card" style="display:none;">
+                <div class="card-header">
+                    <span class="card-title">Resultado de Carga</span>
+                    <span class="badge badge-green" id="results-badge">Procesado</span>
+                </div>
+                <div class="card-body">
+                    <div id="results-list" style="display:flex; flex-direction:column; gap:0.75rem;"></div>
+                </div>
+            </div>
+
+            <!-- EXPECTED COLUMNS INFO -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Formato Esperado del Excel</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Columna</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="td-mono">hpeOrderId</td>
+                            <td><span class="badge badge-blue">String</span></td>
+                            <td><span class="badge badge-green">Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td class="td-mono">customerId</td>
+                            <td><span class="badge badge-blue">String</span></td>
+                            <td><span class="badge badge-green">Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td class="td-mono">productSku</td>
+                            <td><span class="badge badge-blue">String</span></td>
+                            <td><span class="badge badge-green">Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td class="td-mono">quantity</td>
+                            <td><span class="badge badge-yellow">Number</span></td>
+                            <td><span class="badge badge-green">Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td class="td-mono">unitPrice</td>
+                            <td><span class="badge badge-yellow">Decimal</span></td>
+                            <td><span class="badge badge-green">Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td class="td-mono">orderDate</td>
+                            <td><span class="badge badge-gray">Date</span></td>
+                            <td><span class="badge badge-green">Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td class="td-mono">status</td>
+                            <td><span class="badge badge-blue">String</span></td>
+                            <td><span class="badge badge-gray">Opcional</span></td>
+                        </tr>
+                        <tr>
+                            <td class="td-mono">notes</td>
+                            <td><span class="badge badge-blue">String</span></td>
+                            <td><span class="badge badge-gray">Opcional</span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <div style="padding:0.85rem 1rem;">
+                        <p class="text-muted">Ajusta las columnas de acuerdo a tu entidad <span class="text-mono">SalesOrder</span>. Los archivos de tipo <strong>RAW DATA</strong> y <strong>Price EXPORT</strong> se procesan automáticamente.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONFIRM SECTION -->
+            <div class="card" id="confirm-card" style="display:none;">
+                <div class="card-header">
+                    <span class="card-title">Confirmar y Guardar</span>
+                    <span class="badge badge-yellow">Pendiente</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-2">Los datos han sido cargados y están listos para ser confirmados en base de datos. Esta acción es irreversible.</p>
+                    <div class="flex-between" style="flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <div class="stat-label">Registros listos</div>
+                            <div class="stat-value green" id="confirm-count">—</div>
+                        </div>
+                        <button class="btn btn-primary" id="btn-confirm-2" disabled>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            Confirmar Ingesta
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 
-  </main>
+</main>
 
-  <footer class="footer">
+<footer class="footer">
     <span>© 2026 Hewlett Packard Enterprise · CAP Rotation Balance · Uso Interno</span>
-  </footer>
+</footer>
 
-  <div id="toast-container"></div>
+<div id="toast-container"></div>
 
-  <script src="/js/main.js"></script>
-  <script>
+<script src="/js/main.js"></script>
+<script>
     // ── CONFIG ──────────────────────────────────
     const API_BASE = 'http://localhost:8082';
 
@@ -424,6 +424,6 @@
       document.getElementById('toast-container').appendChild(t);
       setTimeout(() => t.remove(), 4000);
     }
-  </script>
+</script>
 </body>
 </html>

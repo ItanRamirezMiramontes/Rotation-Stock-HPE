@@ -1,8 +1,6 @@
 package com.hpe.cap_rotation_balance.domain.repository;
 
 import com.hpe.cap_rotation_balance.domain.entity.SalesOrder;
-import com.hpe.cap_rotation_balance.domain.enums.FiscalQuarter;
-import com.hpe.cap_rotation_balance.domain.enums.IngestionStage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,16 +9,12 @@ import java.util.List;
 @Repository
 public interface SalesOrderRepository extends JpaRepository<SalesOrder, String> {
 
-
-    List<SalesOrder> findByStage(IngestionStage stage);
-
+    // Para ver todas las órdenes de un Sold To Party (Cliente)
     List<SalesOrder> findByCustomer_CustomerId(String customerId);
 
-    List<SalesOrder> findByCustomer_CustomerIdAndFiscalQuarterAndFiscalYear(
-            String customerId,
-            FiscalQuarter fiscalQuarter,
-            Integer fiscalYear
-    );
+    // Para filtrar por Región (Requerimiento Prioritario del Mánager)
+    List<SalesOrder> findByOmRegion(String region);
 
-    long countByStage(IngestionStage stage);
+    // Auditoría: Obtener las últimas órdenes cargadas/actualizadas
+    List<SalesOrder> findTop10ByOrderByUpdatedAtDesc();
 }

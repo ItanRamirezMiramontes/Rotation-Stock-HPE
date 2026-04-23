@@ -4,28 +4,25 @@ import lombok.Getter;
 
 @Getter
 public enum OrderStatus {
-    INV(""),
-    OPEN("OPEN"),
-    CANC("CANC"),
-    COMP("COMP"), // Por si llega Completed abreviado
+    INV("INVOICED"),
+    OPN("OPEN"),
+    CANC("CANCELLED"),
     UNKNOWN("UNKNOWN");
 
-    private final String code;
+    private final String description;
 
-    OrderStatus(String code) {
-        this.code = code;
+    OrderStatus(String description) {
+        this.description = description;
     }
 
-    // Método robusto para el Mapper
     public static OrderStatus fromString(String text) {
         if (text == null || text.isBlank()) return UNKNOWN;
-        String cleanText = text.trim().toUpperCase();
+        String t = text.trim().toUpperCase();
 
-        for (OrderStatus status : OrderStatus.values()) {
-            if (status.name().equals(cleanText) || status.code.equals(cleanText)) {
-                return status;
-            }
-        }
+        if (t.contains("INV")) return INV;
+        if (t.contains("OPN") || t.contains("OPEN")) return OPN;
+        if (t.contains("CANC")) return CANC;
+
         return UNKNOWN;
     }
 }

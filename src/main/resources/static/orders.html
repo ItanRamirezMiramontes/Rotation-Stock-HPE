@@ -1,109 +1,109 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Órdenes — CAP Rotation Balance</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Metric:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Órdenes — CAP Rotation Balance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Metric:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
+<!-- NAVBAR -->
+<nav class="navbar">
     <div class="navbar-brand">
-      <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="48" height="48" rx="4" fill="#01A982"/>
-        <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
-      </svg>
-      <span class="navbar-title">CAP Rotation Balance</span>
+        <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="48" height="48" rx="4" fill="#01A982"/>
+            <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
+        </svg>
+        <span class="navbar-title">CAP Rotation Balance</span>
     </div>
     <ul class="navbar-links">
-      <li><a href="/ingestion.html" class="nav-link">Carga de Archivos</a></li>
-      <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
-      <li><a href="/orders.html" class="nav-link active">Órdenes</a></li>
+        <li><a href="/ingestion.html" class="nav-link">Carga de Archivos</a></li>
+        <li><a href="/dashboard.html" class="nav-link">Dashboard</a></li>
+        <li><a href="/orders.html" class="nav-link active">Órdenes</a></li>
     </ul>
     <div class="navbar-user"><span class="user-badge">INT</span></div>
-  </nav>
+</nav>
 
-  <main class="main-content">
+<main class="main-content">
 
     <!-- PAGE HEADER -->
     <div class="page-header">
-      <div>
-        <div class="page-eyebrow">Repositorio</div>
-        <h1 class="page-title">Todas las Órdenes</h1>
-        <p class="page-subtitle">Listado paginado de Sales Orders. 10 registros por página, ordenados por HPE Order ID.</p>
-      </div>
-      <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-        <div class="search-box">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input class="form-control" type="text" id="search-input" placeholder="Filtrar por ID, cliente, SKU…" style="min-width:240px;" />
+        <div>
+            <div class="page-eyebrow">Repositorio</div>
+            <h1 class="page-title">Todas las Órdenes</h1>
+            <p class="page-subtitle">Listado paginado de Sales Orders. 10 registros por página, ordenados por HPE Order ID.</p>
         </div>
-        <button class="btn btn-ghost btn-sm" id="btn-refresh">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-          Actualizar
-        </button>
-        <button class="btn btn-ghost btn-sm" id="btn-export-orders" title="Próximamente">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exportar
-          <span class="badge badge-yellow" style="font-size:0.65rem;">Pronto</span>
-        </button>
-      </div>
+        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input class="form-control" type="text" id="search-input" placeholder="Filtrar por ID, cliente, SKU…" style="min-width:240px;" />
+            </div>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                Actualizar
+            </button>
+            <button class="btn btn-ghost btn-sm" id="btn-export-orders" title="Próximamente">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar
+                <span class="badge badge-yellow" style="font-size:0.65rem;">Pronto</span>
+            </button>
+        </div>
     </div>
 
     <!-- STATS BAR -->
     <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:1.5rem;">
-      <div class="stat-card">
-        <div class="stat-label">Total de Órdenes</div>
-        <div class="stat-value" id="total-orders">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Página Actual</div>
-        <div class="stat-value blue" id="current-page-stat">1</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total de Páginas</div>
-        <div class="stat-value" id="total-pages-stat">—</div>
-      </div>
+        <div class="stat-card">
+            <div class="stat-label">Total de Órdenes</div>
+            <div class="stat-value" id="total-orders">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Página Actual</div>
+            <div class="stat-value blue" id="current-page-stat">1</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total de Páginas</div>
+            <div class="stat-value" id="total-pages-stat">—</div>
+        </div>
     </div>
 
     <!-- TABLE CARD -->
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">Sales Orders</span>
-        <div style="display:flex; align-items:center; gap:0.75rem;">
-          <span class="text-muted" id="range-label" style="font-size:0.8rem;"></span>
-          <span class="spinner" id="table-spinner" style="display:none;"></span>
+        <div class="card-header">
+            <span class="card-title">Sales Orders</span>
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+                <span class="text-muted" id="range-label" style="font-size:0.8rem;"></span>
+                <span class="spinner" id="table-spinner" style="display:none;"></span>
+            </div>
         </div>
-      </div>
 
-      <div id="table-container">
-        <div class="empty-state">
-          <div class="spinner" style="width:30px;height:30px;margin:0 auto 1rem;"></div>
-          <div class="empty-title">Cargando órdenes…</div>
+        <div id="table-container">
+            <div class="empty-state">
+                <div class="spinner" style="width:30px;height:30px;margin:0 auto 1rem;"></div>
+                <div class="empty-title">Cargando órdenes…</div>
+            </div>
         </div>
-      </div>
 
-      <div style="padding:1rem 1.25rem; border-top:1px solid var(--border);">
-        <div class="flex-between" style="flex-wrap:wrap; gap:0.75rem;">
-          <span class="text-muted" id="page-info" style="font-size:0.82rem;"></span>
-          <div class="pagination" id="pagination"></div>
+        <div style="padding:1rem 1.25rem; border-top:1px solid var(--border);">
+            <div class="flex-between" style="flex-wrap:wrap; gap:0.75rem;">
+                <span class="text-muted" id="page-info" style="font-size:0.82rem;"></span>
+                <div class="pagination" id="pagination"></div>
+            </div>
         </div>
-      </div>
     </div>
 
-  </main>
+</main>
 
-  <footer class="footer">
+<footer class="footer">
     <span>© 2026 Hewlett Packard Enterprise · CAP Rotation Balance · Uso Interno</span>
-  </footer>
+</footer>
 
-  <div id="toast-container"></div>
+<div id="toast-container"></div>
 
-  <script src="/js/main.js"></script>
-  <script>
+<script src="/js/main.js"></script>
+<script>
     const API_BASE = 'http://localhost:8082';
 
     let currentPage    = 0;
@@ -322,6 +322,6 @@
 
     // ── INIT ─────────────────────────────────────
     fetchOrders(0);
-  </script>
+</script>
 </body>
 </html>
