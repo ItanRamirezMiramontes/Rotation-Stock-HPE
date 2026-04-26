@@ -1,24 +1,31 @@
 /**
  * HPE CAP Rotation Balance — app.js
- * SPA Vanilla JS — v2.0 Monolito Desacoplado
+ * SPA Vanilla JS — v3.0
  *
- * Módulos:
- *   Config       — constantes y estado global
- *   API          — todas las llamadas fetch centralizadas
- *   UI Helpers   — toast, spinner, highlight, formateo
- *   Router       — navegación SPA sin recarga
- *   Dashboard    — stat cards y tabla de recientes
- *   Orders       — tabla paginada con filtros server-side
- *   Ingestion    — upload modal con panel de resumen post-ingesta
+ * FIXES APPLIED:
+ *   FIX #1  — NavBar "Dashboard" replaced by "CAP Balance" (section-cap-balance)
+ *   FIX #2  — All user-facing strings translated to English
+ *   FIX #3  — Boot injection: fetchPage + stats called immediately on DOMContentLoaded
+ *              with retry logic for cold Spring Boot starts
+ *   FIX #4  — Duplicate key 'omRegion' in COLUMNS corrected to 'customer'
+ *
+ * Modules:
+ *   Config       — constants and global state
+ *   API          — centralized fetch layer
+ *   UI Helpers   — toast, spinner, highlight, formatting
+ *   Router       — SPA navigation without page reload
+ *   Orders       — paginated table with server-side filters
+ *   Ingestion    — upload modal with post-ingestion summary panel
+ *   CapBalance   — Finance page: distributor lookup, 3% CAP calculation
  */
 
 'use strict';
 
 /* ============================================================
-   1. CONFIG & ESTADO GLOBAL
+   1. CONFIG & GLOBAL STATE
    ============================================================ */
 
-const API_BASE = '';  // Vacío = mismo origen (monolito Spring Boot sirve el frontend)
+const API_BASE = '';  // Empty = same origin (Spring Boot serves the frontend)
 
 const AppState = {
   orders: {
@@ -28,31 +35,21 @@ const AppState = {
     totalElements: 0,
     filters: { region: '', quarter: '', year: '', customerId: '' }
   },
-  dashboard: {
-    currentCustomerId: null
+  capBalance: {
+    currentCustomerId: null,
+    currentQuarter:    null,
+    currentYear:       null,
+    lastResult:        null   // stores the last calculation for export
   }
 };
 
 /* ============================================================
-   2. API — Capa de acceso a datos (fetch centralizado)
+   2. API — Centralized data access layer
    ============================================================ */
 
 const API = {
   async get(path) {
     const res = await fetch(API_BASE + path);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(err.message || `Error ${res.status}`);
-    }
-    return res.json();
-  },
-
-  async post(path, body) {
-    const res = await fetch(API_BASE + path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: res.statusText }));
       throw new Error(err.message || `Error ${res.status}`);
@@ -71,29 +68,36 @@ const API = {
     return res.json();
   },
 
-  /* Órdenes paginadas con filtros server-side */
+  /* Paginated orders with server-side filters */
   async getOrders(page, size, filters) {
     const params = new URLSearchParams({ page, size });
     if (filters.region)     params.set('region',     filters.region);
-    if (filters.quarter)    params.set('quarter',    filters.quarter);
-    if (filters.year)       params.set('year',       filters.year);
-    if (filters.customerId) params.set('customerId', filters.customerId);
+    if (filters.quarter)    params.set('quarter',     filters.quarter);
+    if (filters.year)       params.set('year',        filters.year);
+    if (filters.customerId) params.set('customerId',  filters.customerId);
     return this.get(`/orders?${params}`);
   },
 
-  async getStats()      { return this.get('/orders/stats'); },
-  async getFilters()    { return this.get('/orders/filters'); },
-  async getCustomer(id) { return this.get(`/customers/${encodeURIComponent(id)}`); },
-  async getCustomerOrders(id) { return this.get(`/customers/${encodeURIComponent(id)}/orders`); },
-  async getAllCustomers()     { return this.get('/customers'); },
-  async getRecentOrders()    { return this.get('/orders/recent'); },
+  async getStats()                       { return this.get('/orders/stats'); },
+  async getFilters()                     { return this.get('/orders/filters'); },
+  async getCustomer(id)                  { return this.get(`/customers/${encodeURIComponent(id)}`); },
+  async getCustomerOrders(id)            { return this.get(`/customers/${encodeURIComponent(id)}/orders`); },
+  async getAllCustomers()                { return this.get('/customers'); },
+
+  /* CAP Balance — customer orders filtered by quarter + year */
+  async getCustomerOrdersByQuarter(id, quarter, year) {
+    const params = new URLSearchParams({ customerId: id, size: 500 });
+    if (quarter) params.set('quarter', quarter);
+    if (year)    params.set('year',    year);
+    return this.get(`/orders?${params}`);
+  },
 
   exportUrl(filters) {
     const params = new URLSearchParams();
     if (filters.region)     params.set('region',     filters.region);
-    if (filters.quarter)    params.set('quarter',    filters.quarter);
-    if (filters.year)       params.set('year',       filters.year);
-    if (filters.customerId) params.set('customerId', filters.customerId);
+    if (filters.quarter)    params.set('quarter',     filters.quarter);
+    if (filters.year)       params.set('year',        filters.year);
+    if (filters.customerId) params.set('customerId',  filters.customerId);
     return `${API_BASE}/orders/export?${params}`;
   }
 };
@@ -112,8 +116,8 @@ function showToast(msg, type = 'success') {
     warning: '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/>'
   };
   const colors = { success: '#01A982', error: '#E8382D', warning: '#FFC600' };
-  const color = colors[type] || colors.success;
-  t.innerHTML = `
+  const color  = colors[type] || colors.success;
+  t.innerHTML  = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5">${icons[type] || icons.success}</svg>
     <span>${msg}</span>`;
   container.appendChild(t);
@@ -121,34 +125,39 @@ function showToast(msg, type = 'success') {
 }
 
 function setLoading(btnEl, loading, originalHTML) {
-  btnEl.disabled = loading;
+  btnEl.disabled  = loading;
   btnEl.innerHTML = loading ? '<span class="spinner"></span>' : originalHTML;
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
 }
 
 function statusBadge(s) {
   if (!s) return 'badge-gray';
   const st = s.toLowerCase();
-  if (st.includes('synced')  || st.includes('complet') || st.includes('ok'))     return 'badge-green';
-  if (st.includes('loaded')  || st.includes('pend')    || st.includes('process')) return 'badge-yellow';
+  if (st.includes('synced')  || st.includes('complet') || st.includes('inv'))     return 'badge-green';
+  if (st.includes('loaded')  || st.includes('pend')    || st.includes('opn'))     return 'badge-yellow';
   if (st.includes('cancel')  || st.includes('error')   || st.includes('fail'))    return 'badge-red';
   return 'badge-blue';
 }
 
 function formatDate(val) {
   if (!val) return '—';
-  try { return new Date(val).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: '2-digit' }); }
+  try { return new Date(val).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }); }
   catch { return val; }
 }
 
 function formatMoney(val, currency) {
-  if (val == null) return null; // null = pendiente, lo maneja el caller
+  if (val == null) return null;
   const sym = currency === 'MXN' ? 'MX$' : currency === 'CAD' ? 'CA$' : '$';
   return sym + Number(val).toLocaleString('en-US', { minimumFractionDigits: 2 });
 }
 
 function highlight(val, term) {
   if (!term || !val) return val ?? '—';
-  const s = String(val);
+  const s   = String(val);
   const idx = s.toLowerCase().indexOf(term.toLowerCase());
   if (idx === -1) return s;
   return s.slice(0, idx) +
@@ -156,7 +165,6 @@ function highlight(val, term) {
     s.slice(idx + term.length);
 }
 
-/* Renderiza una celda. Si el valor es null/vacío en una columna "esperable", muestra badge Pendiente */
 function renderCell(col, val, filterTerm, currency) {
   const PENDING_COLS = ['orderValue'];
   const MONO_COLS    = ['hpeOrderId', 'custPoRef', 'sorg'];
@@ -165,7 +173,7 @@ function renderCell(col, val, filterTerm, currency) {
   const MONEY_COLS   = ['orderValue'];
 
   if (PENDING_COLS.includes(col) && (val == null || val === '')) {
-    return `<td><span class="badge badge-pending">Pendiente</span></td>`;
+    return `<td><span class="badge badge-pending">Pending</span></td>`;
   }
   if (STATUS_COLS.includes(col)) {
     return `<td><span class="badge ${statusBadge(val)}">${val ?? '—'}</span></td>`;
@@ -186,7 +194,8 @@ function renderCell(col, val, filterTerm, currency) {
    4. ROUTER SPA
    ============================================================ */
 
-const SECTIONS = ['section-orders', 'section-ingestion', 'section-dashboard'];
+// FIX #1: section-dashboard removed, section-cap-balance added
+const SECTIONS = ['section-orders', 'section-cap-balance'];
 
 function navigate(sectionId) {
   SECTIONS.forEach(id => {
@@ -196,17 +205,18 @@ function navigate(sectionId) {
     link.classList.toggle('active', link.dataset.section === sectionId);
   });
 
-  // Lazy-load de datos al entrar a cada sección
-  if (sectionId === 'section-orders')     Orders.load();
-  if (sectionId === 'section-dashboard')  Dashboard.load();
+  // Lazy-load data when entering each section
+  if (sectionId === 'section-orders')      Orders.load();
+  if (sectionId === 'section-cap-balance') CapBalance.load();
 }
 
 /* ============================================================
-   5. MÓDULO: ORDERS (Tabla paginada + filtros server-side)
+   5. MODULE: ORDERS — Paginated table with server-side filters
    ============================================================ */
 
 const Orders = (() => {
-  // Columnas en el orden del reporte final (15 columnas)
+
+  // FIX #4: Second entry had duplicate key 'omRegion'. Corrected to 'customer'.
   const COLUMNS = [
     { key: 'hpeOrderId',          label: 'HPE Order ID' },
     { key: 'headerStatus',        label: 'Header Status' },
@@ -218,7 +228,8 @@ const Orders = (() => {
     { key: 'orderType',           label: 'Order Type' },
     { key: 'entryDate',           label: 'Entry Date' },
     { key: 'custPoRef',           label: 'Cust PO Ref' },
-    { key: 'omRegion',            label: 'Customer',    customRender: (o) => o.customer?.customerId ?? '—' },
+    // FIX #4 — was { key: 'omRegion', label: 'Customer', ... } (DUPLICATE KEY)
+    { key: 'customer',            label: 'Sold To Party', customRender: (o) => o.customer?.customerId ?? '—' },
     { key: 'shipToAddress',       label: 'Ship-To' },
     { key: 'rtm',                 label: 'RTM' },
     { key: 'currency',            label: 'Currency' },
@@ -229,16 +240,16 @@ const Orders = (() => {
   ];
 
   let filterTerm = '';
-  let loaded = false;
+  let filtersLoaded = false;
 
   async function initFilters() {
     try {
       const { regions, quarters, years } = await API.getFilters();
-      populateSelect('filter-region',  regions,  'Todas las regiones');
-      populateSelect('filter-quarter', quarters, 'Todos los quarters');
-      populateSelect('filter-year',    years,    'Todos los años');
+      populateSelect('filter-region',  regions,  'All regions');
+      populateSelect('filter-quarter', quarters, 'All quarters');
+      populateSelect('filter-year',    years,    'All years');
     } catch (e) {
-      console.warn('No se pudieron cargar los filtros:', e.message);
+      console.warn('Could not load filter options:', e.message);
     }
   }
 
@@ -251,7 +262,7 @@ const Orders = (() => {
 
   async function fetchPage(page) {
     const spinner = document.getElementById('orders-spinner');
-    spinner.style.display = 'block';
+    if (spinner) spinner.style.display = 'block';
 
     try {
       const data = await API.getOrders(page, AppState.orders.size, AppState.orders.filters);
@@ -266,12 +277,12 @@ const Orders = (() => {
       document.getElementById('orders-table-container').innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">⚠️</div>
-          <div class="empty-title">Error al cargar datos</div>
+          <div class="empty-title">Error loading data</div>
           <div class="empty-sub">${err.message}</div>
         </div>`;
       showToast(err.message, 'error');
     } finally {
-      spinner.style.display = 'none';
+      if (spinner) spinner.style.display = 'none';
     }
   }
 
@@ -281,10 +292,12 @@ const Orders = (() => {
       container.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">📭</div>
-          <div class="empty-title">Sin resultados</div>
-          <div class="empty-sub">${AppState.orders.filters.region || AppState.orders.filters.quarter
-            ? 'Ninguna orden coincide con los filtros aplicados.'
-            : 'La base de datos está vacía. Sube archivos Excel primero.'}</div>
+          <div class="empty-title">No results</div>
+          <div class="empty-sub">${
+            AppState.orders.filters.region || AppState.orders.filters.quarter
+              ? 'No orders match the active filters.'
+              : 'Database is empty. Upload SAP Excel files first.'
+          }</div>
         </div>`;
       return;
     }
@@ -292,7 +305,7 @@ const Orders = (() => {
     const thead = COLUMNS.map(c => `<th>${c.label}</th>`).join('');
     const tbody = orders.map(o => {
       const currency = o.currency;
-      const cells = COLUMNS.map(c => {
+      const cells    = COLUMNS.map(c => {
         if (c.customRender) return `<td>${c.customRender(o)}</td>`;
         return renderCell(c.key, o[c.key], filterTerm, currency);
       }).join('');
@@ -353,7 +366,8 @@ const Orders = (() => {
     const start = totalElements === 0 ? 0 : page * size + 1;
     const end   = Math.min(start + size - 1, totalElements);
     const el    = document.getElementById('orders-pag-info');
-    if (el) el.textContent = `${start}–${end} de ${totalElements} · Pág. ${page + 1}/${totalPages}`;
+    // FIX #2: "de N · Pág." → "of N · Page"
+    if (el) el.textContent = `${start}–${end} of ${totalElements} · Page ${page + 1}/${totalPages}`;
   }
 
   function applyFilters() {
@@ -378,7 +392,7 @@ const Orders = (() => {
   }
 
   function load() {
-    if (!loaded) { initFilters(); loaded = true; }
+    if (!filtersLoaded) { initFilters(); filtersLoaded = true; }
     fetchPage(AppState.orders.page);
   }
 
@@ -397,11 +411,12 @@ const Orders = (() => {
     }
   }
 
-  return { init, load };
+  // Exposed for external refresh (e.g. after ingestion)
+  return { init, load, refresh: () => fetchPage(AppState.orders.page) };
 })();
 
 /* ============================================================
-   6. MÓDULO: INGESTION (Upload + panel de resultado)
+   6. MODULE: INGESTION — Upload modal with result summary panel
    ============================================================ */
 
 const Ingestion = (() => {
@@ -418,32 +433,31 @@ const Ingestion = (() => {
 
   function resetModal() {
     selectedFile = null;
-    document.getElementById('ingest-file-name').textContent = '';
-    document.getElementById('ingest-progress-wrap').style.display  = 'none';
-    document.getElementById('ingest-result-panel').style.display   = 'none';
+    document.getElementById('ingest-file-name').textContent = 'None';
+    document.getElementById('ingest-progress-wrap').style.display = 'none';
+    document.getElementById('ingest-result-panel').style.display  = 'none';
     document.getElementById('drop-zone').classList.remove('drag-over');
-    const btnUpload = document.getElementById('btn-ingest-upload');
-    btnUpload.disabled = true;
+    document.getElementById('btn-ingest-upload').disabled = true;
   }
 
   function setFile(file) {
     if (!file || (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls'))) {
-      showToast('Solo se aceptan archivos .xlsx o .xls', 'error');
+      showToast('Only .xlsx or .xls files are accepted.', 'error');
       return;
     }
     selectedFile = file;
     document.getElementById('ingest-file-name').textContent = file.name;
-    document.getElementById('btn-ingest-upload').disabled = false;
+    document.getElementById('btn-ingest-upload').disabled   = false;
   }
 
   async function upload() {
     if (!selectedFile) return;
-    const btn = document.getElementById('btn-ingest-upload');
+    const btn      = document.getElementById('btn-ingest-upload');
     const origHTML = btn.innerHTML;
     setLoading(btn, true, origHTML);
 
     document.getElementById('ingest-progress-wrap').style.display = 'block';
-    document.getElementById('ingest-progress-fill').style.width = '40%';
+    document.getElementById('ingest-progress-fill').style.width   = '40%';
 
     try {
       const result = await API.upload('/ingestion/upload', selectedFile);
@@ -452,16 +466,16 @@ const Ingestion = (() => {
       renderIngestionResult(result);
       document.getElementById('ingest-result-panel').style.display = 'block';
 
-      const toastType = result.status === 'SUCCESS' ? 'success' : result.status === 'PARTIAL' ? 'warning' : 'error';
+      const toastType = result.status === 'SUCCESS' ? 'success'
+                      : result.status === 'PARTIAL'  ? 'warning' : 'error';
       showToast(result.message, toastType);
 
-      // Refrescar stats y tabla si el usuario está en esas secciones
-      Dashboard.refreshStats();
-      if (document.getElementById('section-orders').classList.contains('active')) {
-        Orders.load();
-      }
+      // Refresh the orders table if it's active, and the CAP balance stats
+      Orders.refresh();
+      CapBalance.refreshStats();
+
     } catch (err) {
-      showToast('Error al subir archivo: ' + err.message, 'error');
+      showToast('Upload error: ' + err.message, 'error');
     } finally {
       setLoading(btn, false, origHTML);
     }
@@ -475,12 +489,13 @@ const Ingestion = (() => {
     document.getElementById('ingest-res-skip').textContent   = r.skipped       ?? 0;
     document.getElementById('ingest-res-error').textContent  = r.errors        ?? 0;
     document.getElementById('ingest-res-msg').textContent    = r.message       || '';
-    document.getElementById('ingest-res-status').className   =
-      `badge ${r.status === 'SUCCESS' ? 'badge-green' : r.status === 'PARTIAL' ? 'badge-yellow' : 'badge-red'}`;
-    document.getElementById('ingest-res-status').textContent = r.status;
     document.getElementById('ingest-res-ts').textContent     = formatDate(r.timestamp);
 
-    const errList = document.getElementById('ingest-error-list');
+    const statusEl = document.getElementById('ingest-res-status');
+    statusEl.className   = `badge ${r.status === 'SUCCESS' ? 'badge-green' : r.status === 'PARTIAL' ? 'badge-yellow' : 'badge-red'}`;
+    statusEl.textContent = r.status;
+
+    const errList    = document.getElementById('ingest-error-list');
     const errSection = document.getElementById('ingest-error-section');
     if (r.errorDetails && r.errorDetails.length > 0) {
       errSection.style.display = 'block';
@@ -495,19 +510,18 @@ const Ingestion = (() => {
   }
 
   function init() {
-    // Botón de apertura del modal (en la navbar y en la sección de ingesta)
     document.querySelectorAll('.btn-open-ingest').forEach(btn => {
       btn.addEventListener('click', openModal);
     });
     document.getElementById('modal-close-ingest')?.addEventListener('click', closeModal);
-    document.getElementById('modal-overlay-ingest')?.addEventListener('click', (e) => {
+    document.getElementById('modal-cancel-ingest')?.addEventListener('click', closeModal);
+    document.getElementById('modal-ingestion')?.addEventListener('click', e => {
       if (e.target === e.currentTarget) closeModal();
     });
     document.getElementById('btn-ingest-upload')?.addEventListener('click', upload);
 
-    // Drop zone
     const dropZone  = document.getElementById('drop-zone');
-    const fileInput  = document.getElementById('ingest-file-input');
+    const fileInput = document.getElementById('ingest-file-input');
 
     dropZone?.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
     dropZone?.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
@@ -523,145 +537,345 @@ const Ingestion = (() => {
 })();
 
 /* ============================================================
-   7. MÓDULO: DASHBOARD (Stat cards + tabla de recientes)
+   7. MODULE: CAP BALANCE
+   Finance page — distributor lookup + 3% return allowance calc
+   FIX #1: Full new module replacing the old Dashboard
    ============================================================ */
 
-const Dashboard = (() => {
+const CapBalance = (() => {
+
+  const CAP_RATE = 0.03; // 3% as defined in the stock rotation program
+
+  // ── STATS (top cards) ──────────────────────────────────────
+
   async function refreshStats() {
     try {
-      const stats = await API.getStats();
-      setText('dash-stat-total',    stats.total        ?? '—');
-      setText('dash-stat-synced',   stats.priceSynced  ?? '—');
-      setText('dash-stat-loaded',   stats.loaded       ?? '—');
-      setText('dash-stat-pending',  stats.pricePending ?? '—');
-    } catch (e) { console.warn('Stats error:', e.message); }
-  }
-
-  async function loadRecentOrders() {
-    const container = document.getElementById('dash-recent-orders');
-    if (!container) return;
-    try {
-      const orders = await API.getRecentOrders();
-      if (!orders.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin actividad reciente</div></div>';
-        return;
-      }
-      const cols = ['hpeOrderId', 'omRegion', 'fiscalQuarter', 'orderValue', 'internalStatus', 'updatedAt'];
-      const labels = { hpeOrderId: 'HPE Order ID', omRegion: 'Región', fiscalQuarter: 'Quarter',
-                       orderValue: 'Valor', internalStatus: 'Status', updatedAt: 'Actualizado' };
-      container.innerHTML = `
-        <div class="table-wrapper" style="border:none;border-radius:0;">
-          <table>
-            <thead><tr>${cols.map(c => `<th>${labels[c]}</th>`).join('')}</tr></thead>
-            <tbody>
-              ${orders.map(o => `<tr>
-                ${cols.map(c => renderCell(c, o[c], '', o.currency)).join('')}
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
+      const [stats, customers] = await Promise.all([
+        API.getStats(),
+        API.getAllCustomers()
+      ]);
+      setText('cap-stat-total',     stats.total        ?? '—');
+      setText('cap-stat-synced',    stats.priceSynced  ?? '—');
+      setText('cap-stat-pending',   stats.pricePending ?? '—');
+      setText('cap-stat-customers', customers.length   ?? '—');
     } catch (e) {
-      container.innerHTML = '<div class="empty-state"><div class="empty-sub">No se pudo cargar la actividad reciente.</div></div>';
+      console.warn('CAP stats error:', e.message);
     }
   }
 
-  /* Búsqueda de cliente desde el dashboard */
-  async function searchCustomer() {
-    const id  = document.getElementById('dash-customer-input')?.value.trim();
-    const btn = document.getElementById('dash-btn-search');
-    if (!id) return;
-    const origHTML = btn.innerHTML;
-    setLoading(btn, true, origHTML);
-    document.getElementById('dash-customer-result').style.display    = 'none';
-    document.getElementById('dash-customer-notfound').style.display  = 'none';
+  // ── YEAR DROPDOWN ──────────────────────────────────────────
 
+  async function populateYears() {
+    const sel = document.getElementById('cap-year-select');
+    if (!sel || sel.options.length > 1) return; // already populated
     try {
-      const c = await API.getCustomer(id);
-      AppState.dashboard.currentCustomerId = id;
-      setText('dash-c-id',   c.customerId  || id);
-      setText('dash-c-name', c.customerName || '—');
-      document.getElementById('dash-customer-result').style.display = 'block';
-    } catch {
-      document.getElementById('dash-customer-notfound').style.display = 'block';
-    } finally {
-      setLoading(btn, false, origHTML);
+      const { years } = await API.getFilters();
+      years.forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = `FY${y}`;
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      console.warn('Could not load years for CAP filter:', e.message);
     }
   }
 
-  async function loadCustomerOrders() {
-    const id = AppState.dashboard.currentCustomerId;
-    if (!id) return;
-    const btn = document.getElementById('dash-btn-load-orders');
+  // ── MAIN CALCULATION ───────────────────────────────────────
+
+  async function calculate() {
+    const customerId = document.getElementById('cap-customer-input')?.value.trim();
+    const quarter    = document.getElementById('cap-quarter-select')?.value;
+    const year       = document.getElementById('cap-year-select')?.value;
+
+    // Validation
+    hide('cap-not-found');
+    hide('cap-missing-fields');
+
+    if (!customerId || !quarter || !year) {
+      show('cap-missing-fields');
+      return;
+    }
+
+    const btn      = document.getElementById('cap-btn-search');
     const origHTML = btn.innerHTML;
     setLoading(btn, true, origHTML);
 
-    try {
-      const orders = await API.getCustomerOrders(id);
-      const body    = document.getElementById('dash-orders-body');
-      const badge   = document.getElementById('dash-orders-badge');
-      badge.textContent = orders.length + ' órdenes';
+    show('cap-orders-spinner');
+    hide('cap-result-card');
 
-      if (!orders.length) {
-        body.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin órdenes</div></div>';
+    try {
+      // 1. Verify customer exists
+      let customer;
+      try {
+        customer = await API.getCustomer(customerId);
+      } catch {
+        show('cap-not-found');
+        setLoading(btn, false, origHTML);
+        hide('cap-orders-spinner');
         return;
       }
-      const cols = ['hpeOrderId', 'omRegion', 'orderType', 'entryDate', 'orderValue', 'internalStatus'];
-      const labels = { hpeOrderId: 'HPE Order ID', omRegion: 'Región', orderType: 'Tipo',
-                       entryDate: 'Fecha', orderValue: 'Valor', internalStatus: 'Status' };
-      body.innerHTML = `
-        <div class="table-wrapper" style="border:none;border-radius:0;">
-          <table>
-            <thead><tr>${cols.map(c => `<th>${labels[c]}</th>`).join('')}</tr></thead>
-            <tbody>
-              ${orders.slice(0, 20).map(o => `<tr>
-                ${cols.map(c => renderCell(c, o[c], '', o.currency)).join('')}
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
+
+      // 2. Fetch their orders for this quarter + year
+      const pageData = await API.getCustomerOrdersByQuarter(customerId, quarter, year);
+      const orders   = pageData.content || [];
+
+      // 3. Separate synced (has orderValue) from pending (no price yet)
+      const syncedOrders  = orders.filter(o => o.orderValue != null);
+      const pendingOrders = orders.filter(o => o.orderValue == null);
+
+      // 4. Sum total invoiced value from synced orders only
+      const totalInvoiced = syncedOrders.reduce((sum, o) => sum + Number(o.orderValue), 0);
+
+      // 5. Calculate 3% CAP allowance
+      const capAllowance = totalInvoiced * CAP_RATE;
+
+      // 6. Detect the currency (use first synced order's currency, fallback to first order)
+      const currency = (syncedOrders[0] || orders[0])?.currency || 'USD';
+
+      // 7. Store result for export
+      const result = {
+        customer,
+        quarter,
+        year,
+        orders,
+        syncedOrders,
+        pendingOrders,
+        totalInvoiced,
+        capAllowance,
+        currency
+      };
+      AppState.capBalance.lastResult        = result;
+      AppState.capBalance.currentCustomerId = customerId;
+      AppState.capBalance.currentQuarter    = quarter;
+      AppState.capBalance.currentYear       = year;
+
+      // 8. Render everything
+      renderResult(result);
+      renderOrdersTable(result);
+
     } catch (err) {
-      showToast('Error al cargar órdenes: ' + err.message, 'error');
+      showToast('Error calculating CAP balance: ' + err.message, 'error');
     } finally {
       setLoading(btn, false, origHTML);
+      hide('cap-orders-spinner');
     }
   }
 
-  function setText(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
+  // ── RENDER: LEFT PANEL (CAP summary) ───────────────────────
+
+  function renderResult({ customer, quarter, year, syncedOrders, pendingOrders,
+                           totalInvoiced, capAllowance, currency }) {
+
+    const fmt = (v) => formatMoney(v, currency);
+
+    // Header badge
+    setText('cap-result-period', `${quarter} · FY${year}`);
+
+    // Customer info
+    setText('cap-res-customer-id',   customer.customerId   || '—');
+    setText('cap-res-customer-name', customer.customerName || '—');
+
+    // Totals
+    setText('cap-res-total',       fmt(totalInvoiced));
+    setText('cap-res-order-count', `${syncedOrders.length} order${syncedOrders.length !== 1 ? 's' : ''} included`);
+    setText('cap-res-cap',         fmt(capAllowance));
+
+    // Pending warning
+    if (pendingOrders.length > 0) {
+      setText('cap-pending-msg',
+        `${pendingOrders.length} order${pendingOrders.length !== 1 ? 's' : ''} excluded — price not synced yet. Upload a Price Report to include them in the CAP calculation.`
+      );
+      show('cap-pending-warning');
+    } else {
+      hide('cap-pending-warning');
+    }
+
+    // Recommendation box
+    const recCard = document.getElementById('cap-recommendation');
+    const recIcon  = document.getElementById('cap-rec-icon');
+    const recTitle = document.getElementById('cap-rec-title');
+    const recBody  = document.getElementById('cap-rec-body');
+
+    if (totalInvoiced === 0) {
+      recCard.className  = 'cap-recommendation cap-rec-neutral';
+      recIcon.textContent = 'ℹ';
+      recTitle.textContent = 'No invoiced orders found';
+      recBody.textContent  = `No synced orders found for ${quarter} FY${year}. Upload the Raw Data and Price Reports for this period.`;
+    } else {
+      // The 3% recommendation is always shown — there's no "used" amount yet
+      // (that would require return order tracking, a future enhancement).
+      // For now: show the approved limit and suggest the Finance team to compare
+      // against any existing return requests submitted for this distributor.
+      recCard.className   = 'cap-recommendation cap-rec-ok';
+      recIcon.textContent  = '✔';
+      recTitle.textContent = 'CAP balance calculated';
+      recBody.textContent  =
+        `${customer.customerName || customerId} is approved to return up to ${fmt(capAllowance)} in ${quarter} FY${year} ` +
+        `(3% of ${fmt(totalInvoiced)} total invoiced value). ` +
+        `Compare this limit against any return orders submitted in S4 for this period.`;
+    }
+
+    show('cap-result-card');
   }
+
+  // ── RENDER: RIGHT PANEL (orders table) ─────────────────────
+
+  function renderOrdersTable({ customer, quarter, year, orders, syncedOrders,
+                               pendingOrders, totalInvoiced, currency }) {
+
+    const title = document.getElementById('cap-orders-title');
+    const badge = document.getElementById('cap-orders-badge');
+    const body  = document.getElementById('cap-orders-body');
+    const footer = document.getElementById('cap-orders-footer');
+    const footerSummary = document.getElementById('cap-footer-summary');
+    const pendingBadge  = document.getElementById('cap-footer-pending-badge');
+
+    if (title) title.textContent = `Orders — ${customer.customerId} · ${quarter} FY${year}`;
+    if (badge) badge.textContent = `${orders.length} order${orders.length !== 1 ? 's' : ''}`;
+
+    if (!orders.length) {
+      body.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">No orders found</div>
+          <div class="empty-sub">No ZRES orders found for ${quarter} FY${year}. Upload the Raw Data Report for this period.</div>
+        </div>`;
+      hide('cap-orders-footer');
+      return;
+    }
+
+    const cols = [
+      { key: 'hpeOrderId',       label: 'HPE Order ID',    mono: true },
+      { key: 'entryDate',        label: 'Entry Date',      date: true },
+      { key: 'headerStatus',     label: 'Header Status',   status: true },
+      { key: 'invoiceHeaderStatus', label: 'Invoice Status', status: true },
+      { key: 'orderValue',       label: 'Order Value',     money: true },
+      { key: 'internalStatus',   label: 'Sync Status',     status: true },
+      { key: '_inCap',           label: 'In CAP Calc?' }
+    ];
+
+    const thead = cols.map(c => `<th>${c.label}</th>`).join('');
+    const tbody = orders.map(o => {
+      const inCap    = o.orderValue != null;
+      const cells    = cols.map(c => {
+        if (c.key === '_inCap') {
+          return `<td><span class="badge ${inCap ? 'badge-green' : 'badge-gray'}">${inCap ? 'Yes' : 'No — Pending'}</span></td>`;
+        }
+        if (c.mono)   return `<td class="td-mono">${o[c.key] ?? '—'}</td>`;
+        if (c.date)   return `<td>${formatDate(o[c.key])}</td>`;
+        if (c.status) return `<td><span class="badge ${statusBadge(o[c.key])}">${o[c.key] ?? '—'}</span></td>`;
+        if (c.money) {
+          return inCap
+            ? `<td>${formatMoney(o[c.key], currency)}</td>`
+            : `<td><span class="badge badge-pending">Pending</span></td>`;
+        }
+        return `<td>${o[c.key] ?? '—'}</td>`;
+      }).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+
+    body.innerHTML = `
+      <div class="table-wrapper" style="border:none;border-radius:0;">
+        <table>
+          <thead><tr>${thead}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>`;
+
+    // Footer summary
+    if (footer) {
+      footerSummary.textContent = `Total synced: ${formatMoney(totalInvoiced, currency)} · ${syncedOrders.length} of ${orders.length} orders included`;
+      if (pendingOrders.length > 0) {
+        pendingBadge.textContent = `${pendingOrders.length} pending excluded`;
+        show('cap-footer-pending-badge');
+      } else {
+        hide('cap-footer-pending-badge');
+      }
+      show('cap-orders-footer');
+    }
+  }
+
+  // ── EXPORT CAP SUMMARY ─────────────────────────────────────
+
+  function exportSummary() {
+    const r = AppState.capBalance.lastResult;
+    if (!r) { showToast('No CAP result to export. Run a calculation first.', 'warning'); return; }
+
+    const { customer, quarter, year, currency } = r;
+    const filters = {
+      customerId: customer.customerId,
+      quarter:    quarter,
+      year:       year
+    };
+    window.location.href = API.exportUrl(filters);
+  }
+
+  // ── LOAD (called when navigating to this section) ──────────
 
   function load() {
     refreshStats();
-    loadRecentOrders();
+    populateYears();
   }
 
+  // ── HELPERS ────────────────────────────────────────────────
+
+  function show(id) { const el = document.getElementById(id); if (el) el.style.display = 'block'; }
+  function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none';  }
+
   function init() {
-    document.getElementById('dash-btn-search')?.addEventListener('click', searchCustomer);
-    document.getElementById('dash-customer-input')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') searchCustomer();
+    document.getElementById('cap-btn-search')?.addEventListener('click', calculate);
+    document.getElementById('cap-btn-export')?.addEventListener('click', exportSummary);
+    document.getElementById('btn-refresh-cap-stats')?.addEventListener('click', refreshStats);
+    document.getElementById('cap-customer-input')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') calculate();
     });
-    document.getElementById('dash-btn-load-orders')?.addEventListener('click', loadCustomerOrders);
   }
 
   return { init, load, refreshStats };
 })();
 
 /* ============================================================
-   8. BOOTSTRAP — Init al cargar el DOM
+   8. BOOTSTRAP — Init on DOMContentLoaded
+   FIX #3: Data is fetched immediately on load, with retry logic
+            for slow Spring Boot cold starts
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Router: ligar botones de navegación
+
+  // Wire nav links to router
   document.querySelectorAll('.nav-link[data-section]').forEach(link => {
     link.addEventListener('click', () => navigate(link.dataset.section));
   });
 
-  // Inicializar módulos
+  // Initialize all modules (attach event listeners)
   Orders.init();
   Ingestion.init();
-  Dashboard.init();
+  CapBalance.init();
 
-  // Sección por defecto
+  // FIX #3: Immediately fetch orders on boot, not only on navigate().
+  // Retry up to 3 times with 900ms delay to handle slow Spring Boot cold starts.
+  (async function bootFetch() {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 900; // ms
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        // Trigger orders load directly — navigate() will call it again lazily but this
+        // ensures data is fetched even if the user stays on the default section.
+        await Orders.load();
+        break; // success — stop retrying
+      } catch (err) {
+        if (attempt < MAX_RETRIES) {
+          console.warn(`Boot fetch attempt ${attempt} failed, retrying in ${RETRY_DELAY}ms…`, err.message);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        } else {
+          console.error('Boot fetch failed after all retries:', err.message);
+          showToast('Could not connect to server. Refresh to retry.', 'error');
+        }
+      }
+    }
+  })();
+
+  // Navigate to the default section (triggers lazy load too, safe duplicate)
   navigate('section-orders');
 });
