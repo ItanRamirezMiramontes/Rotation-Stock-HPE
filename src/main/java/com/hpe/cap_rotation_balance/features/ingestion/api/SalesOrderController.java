@@ -20,17 +20,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controlador de Órdenes — Monolito Desacoplado.
+ * SalesOrderController — v4
  *
- * Todos los endpoints consultan exclusivamente la DB local.
- * No existe dependencia de servicios SAP externos.
- *
- * Endpoints:
- *   GET /orders               — Lista paginada con filtros dinámicos
- *   GET /orders/filters       — Valores disponibles para poblar dropdowns en el frontend
- *   GET /orders/stats         — Contadores para las stat-cards del dashboard
- *   GET /orders/export        — Descarga Excel con los filtros activos
- *   GET /orders/recent        — Últimas 10 órdenes modificadas (widget de auditoría)
+ * Changes from v3:
+ * 1. Added @RequestParam "headerStatus" filter — feeds the new Header Status
+ *    dropdown in the Orders filter bar.
+ * 2. /orders/filters now includes "headerStatuses" list so the dropdown is
+ *    populated dynamically from DB values (no hardcoding).
+ * 3. /orders/export passes headerStatus through so exported file respects
+ *    all active filters.
+ * 4. Excel export value "PENDIENTE" corrected to English "PENDING".
+ * 5. All log/comment strings migrated to English.
  */
 @RestController
 @RequestMapping("/orders")
@@ -39,16 +39,8 @@ public class SalesOrderController {
 
     private final SalesOrderRepository orderRepository;
 
-    // ── LISTA PAGINADA CON FILTROS ──────────────────────────────────────────
+    // ── PAGINATED LIST WITH FILTERS ───────────────────────────────────────
 
-    /**
-     * @param region     filtro opcional por OM Region (case-insensitive)
-     * @param quarter    filtro opcional por Fiscal Quarter (Q1, Q2, Q3, Q4)
-     * @param year       filtro opcional por Fiscal Year
-     * @param customerId filtro opcional por Sold To Party ID
-     * @param status     filtro opcional por internalStatus (LOADED, PRICE_SYNCED)
-     * @param pageable   paginación y ordenamiento estándar de Spring (?page=0&size=20&sort=updatedAt,desc)
-     */
     @GetMapping
     public Page<SalesOrder> getAll(
             @RequestParam(required = false) String  region,
@@ -56,6 +48,7 @@ public class SalesOrderController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) String  customerId,
             @RequestParam(required = false) String  status,
+            @RequestParam(required = false) String  headerStatus,   // NEW FILTER
             Pageable pageable
     ) {
         Specification<SalesOrder> spec = Specification.where(null);
@@ -64,32 +57,33 @@ public class SalesOrderController {
         spec = spec.and(SalesOrderSpec.byFiscalYear(year));
         spec = spec.and(SalesOrderSpec.byCustomerId(customerId));
         spec = spec.and(SalesOrderSpec.byInternalStatus(status));
+        spec = spec.and(SalesOrderSpec.byHeaderStatus(headerStatus)); // NEW
         return orderRepository.findAll(spec, pageable);
     }
 
-    // ── VALORES DISPONIBLES PARA DROPDOWNS ─────────────────────────────────
+    // ── DROPDOWN VALUES ───────────────────────────────────────────────────
 
     /**
-     * Devuelve los valores únicos presentes en la DB para poblar los
-     * filtros del frontend sin hardcodear nada en el HTML.
+     * Returns distinct filter values from the DB.
+     * Now includes headerStatuses for the new Header Status dropdown.
      */
     @GetMapping("/filters")
     public ResponseEntity<Map<String, Object>> getAvailableFilters() {
         return ResponseEntity.ok(Map.of(
-                "regions",  orderRepository.findDistinctRegions(),
-                "quarters", orderRepository.findDistinctFiscalQuarters(),
-                "years",    orderRepository.findDistinctFiscalYears()
+                "regions",       orderRepository.findDistinctRegions(),
+                "quarters",      orderRepository.findDistinctFiscalQuarters(),
+                "years",         orderRepository.findDistinctFiscalYears(),
+                "headerStatuses",orderRepository.findDistinctHeaderStatuses()  // NEW
         ));
     }
 
-    // ── STAT CARDS DEL DASHBOARD ────────────────────────────────────────────
+    // ── STAT CARDS ────────────────────────────────────────────────────────
 
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
         long total        = orderRepository.count();
         long loaded       = orderRepository.countByInternalStatus("LOADED");
         long priceSynced  = orderRepository.countByInternalStatus("PRICE_SYNCED");
-        // pricePending = órdenes sin precio (internalStatus=LOADED y orderValue null)
         long pricePending = orderRepository.count(SalesOrderSpec.pricePending());
 
         return ResponseEntity.ok(Map.of(
@@ -100,18 +94,15 @@ public class SalesOrderController {
         ));
     }
 
-    // ── EXPORTACIÓN A EXCEL ─────────────────────────────────────────────────
+    // ── EXCEL EXPORT ──────────────────────────────────────────────────────
 
-    /**
-     * Genera y devuelve un archivo .xlsx con las órdenes que coincidan
-     * con los filtros activos. El frontend hace window.location.href a esta URL.
-     */
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportExcel(
             @RequestParam(required = false) String  region,
             @RequestParam(required = false) String  quarter,
             @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) String  customerId
+            @RequestParam(required = false) String  customerId,
+            @RequestParam(required = false) String  headerStatus
     ) throws Exception {
 
         Specification<SalesOrder> spec = Specification.where(null);
@@ -119,56 +110,55 @@ public class SalesOrderController {
         spec = spec.and(SalesOrderSpec.byFiscalQuarter(quarter));
         spec = spec.and(SalesOrderSpec.byFiscalYear(year));
         spec = spec.and(SalesOrderSpec.byCustomerId(customerId));
+        spec = spec.and(SalesOrderSpec.byHeaderStatus(headerStatus));
 
         List<SalesOrder> orders = orderRepository.findAll(spec);
+        byte[]           bytes  = buildExcel(orders);
+        String           fname  = buildFilename(region, quarter, year);
 
-        byte[] excelBytes = buildExcel(orders);
-
-        String filename = buildFilename(region, quarter, year);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(excelBytes);
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fname + "\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(bytes);
     }
 
-    // ── AUDITORÍA ───────────────────────────────────────────────────────────
+    // ── RECENT ────────────────────────────────────────────────────────────
 
     @GetMapping("/recent")
     public ResponseEntity<List<SalesOrder>> getRecent() {
         return ResponseEntity.ok(orderRepository.findTop10ByOrderByUpdatedAtDesc());
     }
 
-    // ── HELPERS PRIVADOS ────────────────────────────────────────────────────
+    // ── EXCEL BUILD HELPERS ───────────────────────────────────────────────
 
     private byte[] buildExcel(List<SalesOrder> orders) throws Exception {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("Final Report");
 
-            // Cabeceras (alineadas a las 15 columnas del reporte final)
             String[] headers = {
                     "HPE Order ID", "Header Status", "Invoice Status",
                     "OM Region", "Sorg", "Sales Office", "Sales Group",
                     "Order Type", "Entry Date", "Cust PO Ref",
                     "Sold To Party", "Ship-To Address", "RTM",
                     "Currency", "Order Value", "Fiscal Quarter", "Fiscal Year",
-                    "Internal Status", "Updated At"
+                    "Updated At"
             };
 
-            CellStyle headerStyle = wb.createCellStyle();
-            Font font = wb.createFont();
-            font.setBold(true);
-            headerStyle.setFont(font);
-            headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            CellStyle hStyle = wb.createCellStyle();
+            Font      hFont  = wb.createFont();
+            hFont.setBold(true);
+            hStyle.setFont(hFont);
+            hStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            hStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
-            Row headerRow = sheet.createRow(0);
+            Row hRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
-                cell.setCellStyle(headerStyle);
+                Cell c = hRow.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(hStyle);
             }
 
-            // Datos
             int rowIdx = 1;
             for (SalesOrder o : orders) {
                 Row row = sheet.createRow(rowIdx++);
@@ -189,15 +179,13 @@ public class SalesOrderController {
                 if (o.getOrderValue() != null) {
                     row.createCell(14).setCellValue(o.getOrderValue().doubleValue());
                 } else {
-                    row.createCell(14).setCellValue("PENDIENTE");
+                    row.createCell(14).setCellValue("PENDING");   // was "PENDIENTE"
                 }
                 row.createCell(15).setCellValue(safe(o.getFiscalQuarter()));
                 row.createCell(16).setCellValue(o.getFiscalYear() != null ? o.getFiscalYear() : 0);
-                row.createCell(17).setCellValue(safe(o.getInternalStatus()));
-                row.createCell(18).setCellValue(o.getUpdatedAt() != null ? o.getUpdatedAt().toString() : "");
+                row.createCell(17).setCellValue(o.getUpdatedAt() != null ? o.getUpdatedAt().toString() : "");
             }
 
-            // Auto-resize primeras columnas
             for (int i = 0; i < headers.length; i++) sheet.autoSizeColumn(i);
 
             wb.write(out);
@@ -214,6 +202,6 @@ public class SalesOrderController {
         return sb.toString();
     }
 
-    private String safe(String v)      { return v != null ? v : ""; }
-    private String safeDate(LocalDate d) { return d != null ? d.toString() : ""; }
+    private String safe(String v)       { return v != null ? v : ""; }
+    private String safeDate(LocalDate d){ return d != null ? d.toString() : ""; }
 }

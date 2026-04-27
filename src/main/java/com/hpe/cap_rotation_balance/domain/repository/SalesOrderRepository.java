@@ -9,36 +9,33 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * Repositorio de órdenes.
- *
- * Extiende JpaSpecificationExecutor para soportar filtros dinámicos
- * (región, quarter, cliente) sin proliferar métodos findByX.
- * El SalesOrderController usará Specification<SalesOrder> construidas
- * en SalesOrderSpec para componer los filtros recibidos como query params.
+ * SalesOrderRepository — v4
+ * Added: findDistinctHeaderStatuses() to feed the new Header Status filter dropdown.
  */
 @Repository
 public interface SalesOrderRepository
         extends JpaRepository<SalesOrder, String>,
         JpaSpecificationExecutor<SalesOrder> {
 
-    // Usado por CustomerController — sin cambios
     List<SalesOrder> findByCustomer_CustomerId(String customerId);
 
-    // Auditoría — sin cambios
     List<SalesOrder> findTop10ByOrderByUpdatedAtDesc();
 
-    // Conteo para las stat-cards del dashboard
     long countByInternalStatus(String internalStatus);
 
-    // Regiones distintas disponibles — alimenta los dropdowns del frontend
     @Query("SELECT DISTINCT s.omRegion FROM SalesOrder s WHERE s.omRegion IS NOT NULL ORDER BY s.omRegion")
     List<String> findDistinctRegions();
 
-    // Quarters fiscales distintos disponibles — alimenta los dropdowns del frontend
     @Query("SELECT DISTINCT s.fiscalQuarter FROM SalesOrder s WHERE s.fiscalQuarter IS NOT NULL ORDER BY s.fiscalQuarter")
     List<String> findDistinctFiscalQuarters();
 
-    // Años fiscales distintos disponibles
     @Query("SELECT DISTINCT s.fiscalYear FROM SalesOrder s WHERE s.fiscalYear IS NOT NULL ORDER BY s.fiscalYear DESC")
     List<Integer> findDistinctFiscalYears();
+
+    /**
+     * NEW — Distinct SAP Header Status values (e.g. "OPN", "INV", "CANC").
+     * Populates the Header Status dropdown in the Orders filter bar.
+     */
+    @Query("SELECT DISTINCT s.headerStatus FROM SalesOrder s WHERE s.headerStatus IS NOT NULL ORDER BY s.headerStatus")
+    List<String> findDistinctHeaderStatuses();
 }

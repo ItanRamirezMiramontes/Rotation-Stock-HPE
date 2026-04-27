@@ -10,13 +10,12 @@
 
 <!-- ═══════════════════════════════════════════════════════════
      NAVBAR
+     FIX: HPE logo now uses the real HPE_logo.png asset.
+          The SVG placeholder is removed.
      ═══════════════════════════════════════════════════════════ -->
 <nav class="navbar">
     <div class="navbar-brand">
-        <svg class="hpe-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="48" height="48" rx="4" fill="#01A982"/>
-            <text x="6" y="34" font-family="Arial Black" font-size="22" font-weight="900" fill="white">hpe</text>
-        </svg>
+        <img src="/hpe_logo.png" alt="HPE" class="hpe-logo" />
         <span class="navbar-title">CAP Rotation Balance</span>
     </div>
 
@@ -28,7 +27,6 @@
             </button>
         </li>
         <li>
-            <!-- FIX #1: "Dashboard" replaced by dedicated CAP Balance page for Finance -->
             <button class="nav-link" data-section="section-cap-balance">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 CAP Balance
@@ -40,7 +38,7 @@
 </nav>
 
 <!-- ═══════════════════════════════════════════════════════════
-     MAIN CONTENT (SPA — two active sections)
+     MAIN CONTENT
      ═══════════════════════════════════════════════════════════ -->
 <main class="main-content">
 
@@ -54,23 +52,27 @@
                 <div class="page-eyebrow">Final Report</div>
                 <h1 class="page-title">ZRES Orders</h1>
             </div>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-                <button class="btn btn-ghost btn-sm" id="btn-refresh-orders">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                    Refresh
-                </button>
-                <button class="btn btn-secondary btn-sm" id="btn-export">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Export Excel
-                </button>
-                <button class="btn btn-primary btn-sm btn-open-ingest">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Upload SAP Report
-                </button>
+            <!-- FIX-5: Last upload chip sits next to the action buttons -->
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.5rem;">
+                <div id="last-upload-chip" class="last-upload-chip" style="display:none;"></div>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <button class="btn btn-ghost btn-sm" id="btn-refresh-orders">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                        Refresh
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-export">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export Excel
+                    </button>
+                    <button class="btn btn-primary btn-sm btn-open-ingest">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Upload SAP Report
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- FILTER BAR -->
+        <!-- FILTER BAR — FIX-4: Header Status filter added -->
         <div class="filter-bar">
             <div class="filter-group">
                 <label class="filter-label">OM Region</label>
@@ -90,13 +92,20 @@
                     <option value="">All years</option>
                 </select>
             </div>
+            <!-- FIX-4: New Header Status filter -->
+            <div class="filter-group">
+                <label class="filter-label">Header Status</label>
+                <select class="filter-select" id="filter-header-status">
+                    <option value="">All header statuses</option>
+                </select>
+            </div>
             <div class="filter-group">
                 <label class="filter-label">Sold To Party ID</label>
                 <input type="text" class="filter-input" id="filter-customer" placeholder="e.g. 1001234" />
             </div>
             <div style="display:flex; gap:0.5rem; align-items:flex-end;">
                 <button class="btn btn-primary btn-sm" id="btn-apply-filters">Apply</button>
-                <button class="btn btn-ghost btn-sm" id="btn-clear-filters">Clear</button>
+                <button class="btn btn-ghost btn-sm"   id="btn-clear-filters">Clear</button>
             </div>
         </div>
 
@@ -106,7 +115,7 @@
                 <span class="card-title">Records</span>
                 <span class="text-muted" id="orders-pag-info"></span>
             </div>
-            <div id="orders-spinner" class="table-spinner">
+            <div id="orders-spinner" class="table-spinner" style="display:none;">
                 <span class="spinner"></span>
             </div>
             <div id="orders-table-container" style="padding:0;">
@@ -115,7 +124,7 @@
                     <div class="empty-title">Loading data…</div>
                 </div>
             </div>
-            <div class="card-header" style="border-top:1px solid var(--border); border-bottom:none; justify-content:center;">
+            <div class="card-header" style="border-top:1px solid var(--border);border-bottom:none;justify-content:center;">
                 <div class="pagination" id="orders-pagination"></div>
             </div>
         </div>
@@ -124,26 +133,23 @@
 
 
     <!-- ─────────────────────────────────────────────────────────
-         SECTION: CAP BALANCE  (Finance — replaces old Dashboard)
-         FIX #1: New dedicated page for Finance team
+         SECTION: CAP BALANCE  (Finance-focused — unchanged structure)
          ───────────────────────────────────────────────────────── -->
     <div id="section-cap-balance" class="spa-section">
 
         <div class="page-header">
             <div>
-                <div class="page-eyebrow">Finance · Stock Rotation Program</div>
+                <div class="page-eyebrow">Finance · CAP Rotation</div>
                 <h1 class="page-title">CAP Balance</h1>
-                <p class="page-subtitle">Look up a distributor and calculate the approved 3% return allowance for the selected fiscal quarter.</p>
+                <p class="page-subtitle">Calculate the approved return allowance (3% of invoiced value) per distributor and fiscal quarter.</p>
             </div>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-                <button class="btn btn-ghost btn-sm" id="btn-refresh-cap-stats">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                    Refresh stats
-                </button>
-            </div>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-cap-stats">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                Refresh
+            </button>
         </div>
 
-        <!-- GLOBAL STAT CARDS -->
+        <!-- STAT CARDS -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">Total Orders</div>
@@ -155,113 +161,99 @@
                 <div class="stat-value green" id="cap-stat-synced">—</div>
                 <div class="stat-change">Ready for CAP calculation</div>
             </div>
-            <div class="stat-card warn">
-                <div class="stat-label">⏳ Price Pending</div>
-                <div class="stat-value orange" id="cap-stat-pending">—</div>
-                <div class="stat-change">Upload Price Report to sync</div>
-            </div>
             <div class="stat-card">
-                <div class="stat-label">Active Distributors</div>
-                <div class="stat-value blue" id="cap-stat-customers">—</div>
-                <div class="stat-change">With orders in database</div>
+                <div class="stat-label">Raw Data Only</div>
+                <div class="stat-value blue" id="cap-stat-loaded">—</div>
+                <div class="stat-change">No price yet</div>
+            </div>
+            <div class="stat-card warn">
+                <div class="stat-label">⏳ Awaiting Price</div>
+                <div class="stat-value orange" id="cap-stat-pending">—</div>
+                <div class="stat-change">Price Report not uploaded</div>
             </div>
         </div>
 
-        <!-- MAIN GRID: lookup + result -->
-        <div class="grid-cap" style="display:grid; grid-template-columns:340px 1fr; gap:1.25rem; align-items:start;">
+        <!-- CAP CALCULATOR GRID -->
+        <div class="grid-cap">
 
-            <!-- LEFT COLUMN: search + CAP summary -->
+            <!-- LEFT: search + result card -->
             <div style="display:flex; flex-direction:column; gap:1.25rem;">
 
-                <!-- Distributor search -->
+                <!-- Search panel -->
                 <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Distributor Lookup</span>
-                    </div>
+                    <div class="card-header"><span class="card-title">Distributor CAP Lookup</span></div>
                     <div class="card-body">
                         <div class="form-group">
                             <label class="form-label">Sold To Party ID</label>
                             <input type="text" class="form-control" id="cap-customer-input" placeholder="e.g. 1001234" />
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Fiscal Quarter</label>
-                            <select class="form-control" id="cap-quarter-select">
-                                <option value="">Select quarter…</option>
-                                <option value="Q1">Q1 (Nov · Dec · Jan)</option>
-                                <option value="Q2">Q2 (Feb · Mar · Apr)</option>
-                                <option value="Q3">Q3 (May · Jun · Jul)</option>
-                                <option value="Q4">Q4 (Aug · Sep · Oct)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Fiscal Year</label>
-                            <select class="form-control" id="cap-year-select">
-                                <option value="">Select year…</option>
-                            </select>
+                        <div class="grid-2 mb-2" style="gap:0.75rem;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="form-label">Fiscal Quarter</label>
+                                <select class="form-control" id="cap-quarter-select">
+                                    <option value="">Select quarter</option>
+                                    <option value="Q1">Q1 (Nov–Jan)</option>
+                                    <option value="Q2">Q2 (Feb–Apr)</option>
+                                    <option value="Q3">Q3 (May–Jul)</option>
+                                    <option value="Q4">Q4 (Aug–Oct)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="form-label">Fiscal Year</label>
+                                <select class="form-control" id="cap-year-select">
+                                    <option value="">Select year</option>
+                                </select>
+                            </div>
                         </div>
                         <button class="btn btn-primary" style="width:100%;" id="cap-btn-search">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                             Calculate CAP Balance
                         </button>
-
-                        <!-- Not found alert -->
-                        <div id="cap-not-found" style="display:none;" class="mt-2">
-                            <div class="alert alert-error">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
-                                Distributor not found. Verify the Sold To Party ID.
-                            </div>
-                        </div>
-
-                        <!-- Missing fields alert -->
-                        <div id="cap-missing-fields" style="display:none;" class="mt-2">
-                            <div class="alert alert-warning">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                Please fill in Sold To Party ID, Quarter and Year.
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <!-- CAP Calculation result -->
+                <!-- Result card -->
                 <div class="card" id="cap-result-card" style="display:none;">
                     <div class="card-header">
-                        <span class="card-title">CAP Allowance</span>
+                        <span class="card-title">CAP Summary</span>
                         <span class="badge badge-blue" id="cap-result-period">—</span>
                     </div>
                     <div class="card-body">
 
-                        <!-- Customer info -->
-                        <div class="cap-info-block mb-2">
-                            <div class="cap-info-row">
-                                <span class="stat-label">Distributor</span>
-                                <span class="text-mono" id="cap-res-customer-id">—</span>
+                        <!-- Customer -->
+                        <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.85rem;margin-bottom:1rem;">
+                            <div class="stat-label mb-1">Distributor</div>
+                            <div style="font-weight:600;font-size:0.95rem;" id="cap-res-customer-name">—</div>
+                            <div class="text-mono text-muted" id="cap-res-customer-id">—</div>
+                        </div>
+
+                        <!-- Invoiced total -->
+                        <div class="flex-between mb-2">
+                            <div>
+                                <div class="stat-label">Total Invoiced Value</div>
+                                <div class="stat-value" style="font-size:1.4rem;" id="cap-res-total">—</div>
+                                <div class="text-muted" style="font-size:0.78rem;" id="cap-res-order-count">—</div>
                             </div>
-                            <div class="cap-info-row">
-                                <span class="stat-label">Name</span>
-                                <span id="cap-res-customer-name">—</span>
-                            </div>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--hpe-green)" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                         </div>
 
                         <div class="divider"></div>
 
-                        <!-- Total invoiced -->
-                        <div class="cap-metric-box cap-metric-neutral mb-1">
-                            <div class="stat-label">Total invoiced value (synced orders)</div>
-                            <div class="stat-value blue" id="cap-res-total">—</div>
-                            <div class="stat-change" id="cap-res-order-count">— orders included</div>
+                        <!-- CAP allowance -->
+                        <div class="flex-between" style="align-items:center;">
+                            <div>
+                                <div class="stat-label">CAP Allowance (3%)</div>
+                                <div class="stat-value green" style="font-size:1.6rem;" id="cap-res-cap">—</div>
+                            </div>
+                            <div style="font-size:0.72rem;font-weight:700;color:var(--hpe-green);background:var(--hpe-green-light);padding:0.3rem 0.65rem;border-radius:20px;">3% RULE</div>
                         </div>
 
-                        <!-- Approved CAP (3%) -->
-                        <div class="cap-metric-box cap-metric-warn mb-1">
-                            <div class="stat-label">Approved CAP (3% of invoiced)</div>
-                            <div class="stat-value orange" id="cap-res-cap">—</div>
-                            <div class="stat-change">Maximum return value this quarter</div>
-                        </div>
-
-                        <!-- Pending orders warning -->
-                        <div id="cap-pending-warning" style="display:none;" class="alert alert-warning mb-2">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-                            <span id="cap-pending-msg"></span>
+                        <!-- Pending warning -->
+                        <div id="cap-pending-warning" style="display:none;" class="mt-2">
+                            <div class="alert alert-warning">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+                                <span id="cap-pending-msg"></span>
+                            </div>
                         </div>
 
                         <!-- Recommendation -->
@@ -283,7 +275,7 @@
 
             </div><!-- /left column -->
 
-            <!-- RIGHT COLUMN: orders table for this customer + quarter -->
+            <!-- RIGHT: orders table -->
             <div class="card" id="cap-orders-card">
                 <div class="card-header">
                     <span class="card-title" id="cap-orders-title">Orders</span>
@@ -299,14 +291,13 @@
                         <div class="empty-sub">Search a Sold To Party ID to see their orders and CAP calculation.</div>
                     </div>
                 </div>
-                <!-- Summary footer -->
                 <div id="cap-orders-footer" class="card-footer-summary" style="display:none;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span class="text-muted" id="cap-footer-summary">—</span>
-                        <span class="badge badge-yellow" id="cap-footer-pending-badge" style="display:none;">— pending orders excluded</span>
+                        <span class="badge badge-yellow" id="cap-footer-pending-badge" style="display:none;">— pending excluded</span>
                     </div>
                 </div>
-            </div><!-- /right column -->
+            </div>
 
         </div><!-- /grid-cap -->
 
@@ -320,6 +311,9 @@
 
 <!-- ═══════════════════════════════════════════════════════════
      MODAL: UPLOAD SAP EXCEL REPORT
+     FIX-1: Drop zone restructured — no nested input trigger issues
+     FIX-2: Two independent slots (Raw Data + Price Report)
+     FIX-3: Upload order warning block
      ═══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-ingestion">
     <div class="modal">
@@ -329,17 +323,52 @@
         </div>
         <div class="modal-body">
 
-            <!-- DROP ZONE -->
-            <div class="drop-zone" id="drop-zone">
-                <input type="file" id="ingest-file-input" accept=".xlsx,.xls" />
-                <div class="drop-icon">📂</div>
-                <div class="drop-text">Drag your file here or click to browse</div>
-                <div class="drop-subtext">Supports Raw Data Report and Price Export · .xlsx / .xls only</div>
+            <!-- FIX-3: Upload order enforcement warning (hidden by default) -->
+            <div id="ingest-order-warning" class="alert alert-error" style="display:none; align-items:flex-start; gap:0.75rem; margin-bottom:1rem;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+                <div>
+                    <strong>Upload order required</strong><br/>
+                    <span class="order-warn-msg" style="font-size:0.82rem;"></span>
+                </div>
             </div>
 
-            <div style="margin-top:0.75rem; font-size:0.82rem; color:var(--text-muted);">
-                Selected file: <strong id="ingest-file-name">None</strong>
+            <!-- FIX-2: Two separate file upload slots -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+
+                <!-- RAW DATA SLOT -->
+                <div>
+                    <div class="slot-label">
+                        <span class="badge badge-blue" style="margin-bottom:0.5rem;">Step 1</span>
+                        <span style="font-size:0.78rem; color:var(--text-secondary); margin-left:0.5rem;">Raw Data Report</span>
+                    </div>
+                    <!-- FIX-1: input is hidden via CSS pointer-events:none; click is handled by JS on the div -->
+                    <div class="drop-zone drop-zone-sm" id="ingest-raw-slot">
+                        <input type="file" id="ingest-raw-input" accept=".xlsx,.xls" tabindex="-1" />
+                        <div class="drop-icon" style="font-size:1.4rem;">📋</div>
+                        <div class="drop-text" style="font-size:0.8rem;">Click or drag</div>
+                    </div>
+                    <div class="slot-filename" id="ingest-raw-name">No file selected</div>
+                </div>
+
+                <!-- PRICE REPORT SLOT -->
+                <div>
+                    <div class="slot-label">
+                        <span class="badge badge-green" style="margin-bottom:0.5rem;">Step 2</span>
+                        <span style="font-size:0.78rem; color:var(--text-secondary); margin-left:0.5rem;">Price Export Report</span>
+                    </div>
+                    <div class="drop-zone drop-zone-sm" id="ingest-price-slot">
+                        <input type="file" id="ingest-price-input" accept=".xlsx,.xls" tabindex="-1" />
+                        <div class="drop-icon" style="font-size:1.4rem;">💲</div>
+                        <div class="drop-text" style="font-size:0.8rem;">Click or drag</div>
+                    </div>
+                    <div class="slot-filename" id="ingest-price-name">No file selected</div>
+                </div>
+
             </div>
+
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.75rem; line-height:1.5;">
+                You can upload one or both files at the same time. If uploading only a Price Report, make sure Raw Data has been loaded first. Both files accept <strong>.xlsx</strong> and <strong>.xls</strong>.
+            </p>
 
             <!-- PROGRESS -->
             <div id="ingest-progress-wrap" style="display:none;" class="mt-1">
@@ -384,14 +413,13 @@
                     </div>
                 </div>
 
-                <!-- Error list -->
                 <div id="ingest-error-section" style="display:none; margin-top:0.75rem;">
-                    <div class="ingest-stat errored" style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0.85rem; border-radius:var(--radius-sm) var(--radius-sm) 0 0;">
+                    <div class="ingest-stat errored" style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.85rem;border-radius:var(--radius-sm) var(--radius-sm) 0 0;">
                         <span class="ingest-stat-lbl" style="margin:0;">Orders with errors</span>
                         <span class="ingest-stat-val" id="ingest-res-error" style="font-size:1rem;">0</span>
                     </div>
                     <div class="error-list" id="ingest-error-list"
-                         style="border:1px solid var(--border); border-top:none; border-radius:0 0 var(--radius-sm) var(--radius-sm);">
+                         style="border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);">
                     </div>
                 </div>
             </div><!-- /ingest-result-panel -->
@@ -420,9 +448,7 @@
     </div>
 </div>
 
-<!-- TOAST CONTAINER -->
 <div id="toast-container"></div>
-
 <script src="/js/app.js"></script>
 </body>
 </html>

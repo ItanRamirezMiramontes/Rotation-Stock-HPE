@@ -4,16 +4,8 @@ import com.hpe.cap_rotation_balance.domain.entity.SalesOrder;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
- * Constructores de Specification<SalesOrder> para filtros dinámicos.
- *
- * Se componen con .and() en el Controller:
- *   Specification<SalesOrder> spec = Specification.where(null);
- *   if (region != null)  spec = spec.and(SalesOrderSpec.byRegion(region));
- *   if (quarter != null) spec = spec.and(SalesOrderSpec.byQuarter(quarter));
- *   ...
- *   repository.findAll(spec, pageable);
- *
- * Esto reemplaza la proliferación de métodos findByXAndY en el repositorio.
+ * SalesOrderSpec — v4
+ * Added: byHeaderStatus() to support the new Header Status filter.
  */
 public class SalesOrderSpec {
 
@@ -55,8 +47,19 @@ public class SalesOrderSpec {
     }
 
     /**
-     * Órdenes que NO tienen precio asignado todavía (internalStatus = LOADED, orderValue IS NULL).
-     * Usada por el dashboard para mostrar el conteo de "Pendientes de cruce".
+     * NEW — Filter by SAP Header Status (e.g. "OPN", "INV", "CANC").
+     * Case-insensitive to tolerate mixed-case values coming from SAP exports.
+     */
+    public static Specification<SalesOrder> byHeaderStatus(String headerStatus) {
+        return (root, query, cb) ->
+                headerStatus == null || headerStatus.isBlank()
+                        ? cb.conjunction()
+                        : cb.equal(cb.upper(root.get("headerStatus")), headerStatus.toUpperCase());
+    }
+
+    /**
+     * Orders without a price yet (LOADED + orderValue IS NULL).
+     * Used by stat cards.
      */
     public static Specification<SalesOrder> pricePending() {
         return (root, query, cb) ->

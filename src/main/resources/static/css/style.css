@@ -481,3 +481,121 @@ tbody td { padding: 0.75rem 0.85rem; color: var(--text-primary); vertical-align:
 .search-box { position: relative; display: inline-flex; align-items: center; }
 .search-box svg { position: absolute; left: 0.75rem; color: var(--text-muted); pointer-events: none; }
 .search-box input { padding-left: 2.25rem; min-width: 220px; }
+
+/*
+ * style.css — ADDITIONS / PATCHES for v4
+ *
+ * Add this block at the END of the existing style.css file.
+ * Do NOT replace the whole file — these are incremental additions.
+ *
+ * Covers:
+ *   FIX-1  Drop-zone double-open: pointer-events:none on hidden file inputs
+ *   FIX-2  Dual upload slots: .drop-zone-sm, .slot-label, .slot-filename, .has-file state
+ *   FIX-5  Last upload chip: .last-upload-chip
+ *   FIX-9  No-value placeholder is already inline in JS (NO_VAL const)
+ */
+
+/* ── FIX-1: Hidden file inputs inside slots must NOT intercept clicks ── */
+.drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;   /* ← KEY FIX: prevents double file-picker open */
+  cursor: default;
+  width: 0;
+  height: 0;
+}
+
+/* ── FIX-2: Smaller drop-zone variant for the two-slot layout ── */
+.drop-zone-sm {
+  padding: 1.1rem 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.drop-zone-sm:hover,
+.drop-zone-sm.drag-over {
+  border-color: var(--hpe-green);
+  background: var(--hpe-green-light);
+}
+.drop-zone-sm.has-file {
+  border-color: var(--hpe-green);
+  border-style: solid;
+  background: var(--hpe-green-light);
+}
+.drop-zone-sm .drop-icon { margin: 0; }
+.drop-zone-sm .drop-text { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Slot label row above each drop zone */
+.slot-label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+/* Filename shown below each slot */
+.slot-filename {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── FIX-5: Last upload chip ── */
+.last-upload-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  white-space: nowrap;
+}
+.last-upload-chip strong {
+  color: var(--text-secondary);
+}
+
+/* ── CAP Grid layout (was already in full CSS, ensured present here) ── */
+.grid-cap {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* CAP Recommendation card variants */
+.cap-recommendation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+}
+.cap-rec-ok      { background: var(--hpe-green-light); border-color: var(--hpe-green); }
+.cap-rec-warn    { background: #FFF8E0;                border-color: var(--status-warn); }
+.cap-rec-neutral { background: var(--bg-base);         border-color: var(--border); }
+.rec-icon  { font-size: 1.25rem; flex-shrink: 0; margin-top: 0.1rem; }
+.rec-title { font-weight: 600; font-size: 0.875rem; margin-bottom: 0.25rem; }
+.rec-body  { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; }
+
+/* Responsive: stack CAP grid on smaller screens */
+@media (max-width: 1100px) {
+  .grid-cap { grid-template-columns: 1fr; }
+}

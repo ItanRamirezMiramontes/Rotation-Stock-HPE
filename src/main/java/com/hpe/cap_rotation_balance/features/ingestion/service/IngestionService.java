@@ -24,38 +24,66 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Servicio de ingesta — Monolito Desacoplado.
+ * IngestionService — v4
  *
- * Cambios respecto a la versión anterior:
- * 1. Upsert explícito: distingue entre INSERT y UPDATE para reportarlo al frontend.
- * 2. IngestionResponseDTO ampliado con contadores granulares y lista de errores.
- * 3. Sin dependencias externas. Solo repositorios locales.
+ * Changes from v3:
+ * 1. handleFileUpload() is now split into handleRawDataUpload() and
+ *    handlePriceUpload() — both public — so the Controller can call them
+ *    independently or sequentially for the dual-file upload flow.
+ * 2. Added databaseHasOrders() for the order-enforcement check in the Controller.
+ * 3. Messages are fully in English (consistency fix).
+ * 4. Added SalesOrderRepository.findDistinctHeaderStatuses() support via new
+ *    query method referenced in SalesOrderRepository (also updated in this PR).
  */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class IngestionService {
 
-    private final ExcelReader         excelReader;
+    private final ExcelReader          excelReader;
     private final SalesOrderRepository orderRepository;
-    private final CustomerRepository  customerRepository;
-    private final AuditLogRepository  auditRepository;
-    private final OrderMapper         orderMapper;
+    private final CustomerRepository   customerRepository;
+    private final AuditLogRepository   auditRepository;
+    private final OrderMapper          orderMapper;
 
+    // ── PUBLIC ENTRY POINTS ───────────────────────────────────────────────
+
+    /** Used by IngestionController for single-file requests (auto-detect type). */
     @Transactional
     public IngestionResponseDTO handleFileUpload(MultipartFile file) {
         if (excelReader.isRawDataReport(file)) {
-            return processRawData(file);
+            return handleRawDataUpload(file);
         } else if (excelReader.isPriceReport(file)) {
-            return processPriceReport(file);
-        } else {
-            throw new IllegalArgumentException(
-                    "El archivo no coincide con el layout de SAP (Raw Data o Price Report)."
-            );
+            return handlePriceUpload(file);
         }
+        throw new IllegalArgumentException(
+                "File does not match any known SAP report layout (Raw Data or Price Report)."
+        );
     }
 
-    // ── RAW DATA ────────────────────────────────────────────────────────────
+    /** Process a Raw Data Report (ZRES orders). Public so Controller can call it directly. */
+    @Transactional
+    public IngestionResponseDTO handleRawDataUpload(MultipartFile file) {
+        log.info("Processing RAW DATA: {}", file.getOriginalFilename());
+        return processRawData(file);
+    }
+
+    /** Process a Price Export Report. Public so Controller can call it directly. */
+    @Transactional
+    public IngestionResponseDTO handlePriceUpload(MultipartFile file) {
+        log.info("Processing PRICE REPORT: {}", file.getOriginalFilename());
+        return processPriceReport(file);
+    }
+
+    /**
+     * Quick check used by the Controller to enforce upload order.
+     * Returns true if at least one SalesOrder exists in the database.
+     */
+    public boolean databaseHasOrders() {
+        return orderRepository.count() > 0;
+    }
+
+    // ── RAW DATA ─────────────────────────────────────────────────────────
 
     private IngestionResponseDTO processRawData(MultipartFile file) {
         List<ExcelOrderDTO> dtos = excelReader.readExcel(file);
@@ -65,22 +93,19 @@ public class IngestionService {
 
         for (ExcelOrderDTO dto : dtos) {
             try {
-                // Upsert explícito: findById determina si es INSERT o UPDATE
-                boolean exists = orderRepository.existsById(dto.hpeOrderId());
-                SalesOrder order = orderRepository.findById(dto.hpeOrderId())
+                boolean    exists = orderRepository.existsById(dto.hpeOrderId());
+                SalesOrder order  = orderRepository.findById(dto.hpeOrderId())
                         .orElse(new SalesOrder());
 
                 Customer customer = resolveCustomer(dto.soldToParty());
                 order.setCustomer(customer);
                 orderMapper.updateRawData(order, dto);
 
-                // Solo sobreescribir el status si es un registro nuevo;
-                // si ya tenía PRICE_SYNCED no lo regresamos a LOADED.
                 if (!exists) {
                     order.setInternalStatus("LOADED");
                     inserted++;
                 } else {
-                    // Preservar PRICE_SYNCED si ya tenía precio
+                    // Preserve PRICE_SYNCED if the order already has a price
                     if (!"PRICE_SYNCED".equals(order.getInternalStatus())) {
                         order.setInternalStatus("LOADED");
                     }
@@ -91,20 +116,20 @@ public class IngestionService {
 
             } catch (Exception e) {
                 errors++;
-                errorDetails.add(new IngestionErrorDetail(dto.hpeOrderId(), e.getMessage()));
-                log.error("Error procesando orden {}: {}", dto.hpeOrderId(), e.getMessage());
+                errorDetails.add(new IngestionErrorDetail(dto.hpeOrderId(), sanitize(e.getMessage())));
+                log.error("Error processing order {}: {}", dto.hpeOrderId(), e.getMessage());
             }
         }
 
-        int total = inserted + updated + errors;
+        int    total     = inserted + updated + errors;
         String statusStr = errors == 0 ? "SUCCESS" : (inserted + updated > 0 ? "PARTIAL" : "ERROR");
-        String message = String.format(
-                "RAW DATA procesado: %d nuevas, %d actualizadas, %d errores.",
+        String message   = String.format(
+                "Raw Data processed: %d new, %d updated, %d error(s).",
                 inserted, updated, errors
         );
 
         recordAudit("RAW_DATA_UPLOAD", inserted + updated,
-                "Archivo: " + file.getOriginalFilename() + " | Errores: " + errors);
+                "File: " + file.getOriginalFilename() + " | Errors: " + errors);
 
         return new IngestionResponseDTO(
                 statusStr, "RAW_DATA",
@@ -114,17 +139,17 @@ public class IngestionService {
         );
     }
 
-    // ── PRICE REPORT ────────────────────────────────────────────────────────
+    // ── PRICE REPORT ─────────────────────────────────────────────────────
 
     private IngestionResponseDTO processPriceReport(MultipartFile file) {
         Map<String, BigDecimal> prices = excelReader.readPriceMap(file);
 
-        int updatedCount = 0, skipped = 0;
+        int    updatedCount = 0, skipped = 0;
         List<IngestionErrorDetail> errorDetails = new ArrayList<>();
 
         for (Map.Entry<String, BigDecimal> entry : prices.entrySet()) {
-            String hpeOrderId = entry.getKey();
-            BigDecimal price  = entry.getValue();
+            String     hpeOrderId = entry.getKey();
+            BigDecimal price      = entry.getValue();
             try {
                 if (orderRepository.existsById(hpeOrderId)) {
                     SalesOrder order = orderRepository.findById(hpeOrderId).get();
@@ -133,25 +158,24 @@ public class IngestionService {
                     orderRepository.save(order);
                     updatedCount++;
                 } else {
-                    // La orden no existe en nuestra DB todavía — se reporta como skipped
                     skipped++;
-                    log.debug("Orden {} no encontrada en DB, precio omitido.", hpeOrderId);
+                    log.debug("Order {} not found in DB — price skipped.", hpeOrderId);
                 }
             } catch (Exception e) {
-                errorDetails.add(new IngestionErrorDetail(hpeOrderId, e.getMessage()));
-                log.error("Error actualizando precio de orden {}: {}", hpeOrderId, e.getMessage());
+                errorDetails.add(new IngestionErrorDetail(hpeOrderId, sanitize(e.getMessage())));
+                log.error("Error updating price for order {}: {}", hpeOrderId, e.getMessage());
             }
         }
 
-        int errors = errorDetails.size();
+        int    errors    = errorDetails.size();
         String statusStr = errors == 0 ? "SUCCESS" : (updatedCount > 0 ? "PARTIAL" : "ERROR");
-        String message = String.format(
-                "PRICE REPORT procesado: %d precios sincronizados, %d órdenes no encontradas, %d errores.",
+        String message   = String.format(
+                "Price Report processed: %d prices synced, %d orders not found, %d error(s).",
                 updatedCount, skipped, errors
         );
 
         recordAudit("PRICE_REPORT_UPLOAD", updatedCount,
-                "Archivo: " + file.getOriginalFilename() + " | Skipped: " + skipped);
+                "File: " + file.getOriginalFilename() + " | Skipped: " + skipped);
 
         return new IngestionResponseDTO(
                 statusStr, "PRICE_REPORT",
@@ -161,11 +185,11 @@ public class IngestionService {
         );
     }
 
-    // ── HELPERS ─────────────────────────────────────────────────────────────
+    // ── HELPERS ───────────────────────────────────────────────────────────
 
     private Customer resolveCustomer(String soldToPartyId) {
         return customerRepository.findById(soldToPartyId).orElseGet(() -> {
-            log.info("Creando nuevo Customer: {}", soldToPartyId);
+            log.info("Creating new Customer: {}", soldToPartyId);
             return customerRepository.save(
                     Customer.builder()
                             .customerId(soldToPartyId)
@@ -184,5 +208,15 @@ public class IngestionService {
                         .details(details)
                         .build()
         );
+    }
+
+    /**
+     * Strips internal exception class names from messages before sending
+     * them to the frontend (security: don't leak stack info).
+     */
+    private String sanitize(String msg) {
+        if (msg == null) return "Unexpected error";
+        // Remove "com.xxx.YYYException: " prefixes
+        return msg.replaceAll("^[\\w.]+Exception:\\s*", "").trim();
     }
 }
