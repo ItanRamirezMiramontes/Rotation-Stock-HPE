@@ -14,10 +14,6 @@
           The SVG placeholder is removed.
      ═══════════════════════════════════════════════════════════ -->
 <nav class="navbar">
-    <div class="navbar-brand">
-        <img src="/hpe_logo.png" alt="HPE" class="hpe-logo" />
-        <span class="navbar-title">CAP Rotation Balance</span>
-    </div>
 
     <ul class="navbar-links">
         <li>
@@ -26,12 +22,7 @@
                 Orders
             </button>
         </li>
-        <li>
-            <button class="nav-link" data-section="section-cap-balance">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                CAP Balance
-            </button>
-        </li>
+
     </ul>
 
     <div class="navbar-user"><span class="user-badge">INT</span></div>
@@ -130,178 +121,6 @@
         </div>
 
     </div><!-- /section-orders -->
-
-
-    <!-- ─────────────────────────────────────────────────────────
-         SECTION: CAP BALANCE  (Finance-focused — unchanged structure)
-         ───────────────────────────────────────────────────────── -->
-    <div id="section-cap-balance" class="spa-section">
-
-        <div class="page-header">
-            <div>
-                <div class="page-eyebrow">Finance · CAP Rotation</div>
-                <h1 class="page-title">CAP Balance</h1>
-                <p class="page-subtitle">Calculate the approved return allowance (3% of invoiced value) per distributor and fiscal quarter.</p>
-            </div>
-            <button class="btn btn-ghost btn-sm" id="btn-refresh-cap-stats">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                Refresh
-            </button>
-        </div>
-
-        <!-- STAT CARDS -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Orders</div>
-                <div class="stat-value" id="cap-stat-total">—</div>
-                <div class="stat-change">Records in database</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Price Synced</div>
-                <div class="stat-value green" id="cap-stat-synced">—</div>
-                <div class="stat-change">Ready for CAP calculation</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Raw Data Only</div>
-                <div class="stat-value blue" id="cap-stat-loaded">—</div>
-                <div class="stat-change">No price yet</div>
-            </div>
-            <div class="stat-card warn">
-                <div class="stat-label">⏳ Awaiting Price</div>
-                <div class="stat-value orange" id="cap-stat-pending">—</div>
-                <div class="stat-change">Price Report not uploaded</div>
-            </div>
-        </div>
-
-        <!-- CAP CALCULATOR GRID -->
-        <div class="grid-cap">
-
-            <!-- LEFT: search + result card -->
-            <div style="display:flex; flex-direction:column; gap:1.25rem;">
-
-                <!-- Search panel -->
-                <div class="card">
-                    <div class="card-header"><span class="card-title">Distributor CAP Lookup</span></div>
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label class="form-label">Sold To Party ID</label>
-                            <input type="text" class="form-control" id="cap-customer-input" placeholder="e.g. 1001234" />
-                        </div>
-                        <div class="grid-2 mb-2" style="gap:0.75rem;">
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label class="form-label">Fiscal Quarter</label>
-                                <select class="form-control" id="cap-quarter-select">
-                                    <option value="">Select quarter</option>
-                                    <option value="Q1">Q1 (Nov–Jan)</option>
-                                    <option value="Q2">Q2 (Feb–Apr)</option>
-                                    <option value="Q3">Q3 (May–Jul)</option>
-                                    <option value="Q4">Q4 (Aug–Oct)</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label class="form-label">Fiscal Year</label>
-                                <select class="form-control" id="cap-year-select">
-                                    <option value="">Select year</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button class="btn btn-primary" style="width:100%;" id="cap-btn-search">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            Calculate CAP Balance
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Result card -->
-                <div class="card" id="cap-result-card" style="display:none;">
-                    <div class="card-header">
-                        <span class="card-title">CAP Summary</span>
-                        <span class="badge badge-blue" id="cap-result-period">—</span>
-                    </div>
-                    <div class="card-body">
-
-                        <!-- Customer -->
-                        <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.85rem;margin-bottom:1rem;">
-                            <div class="stat-label mb-1">Distributor</div>
-                            <div style="font-weight:600;font-size:0.95rem;" id="cap-res-customer-name">—</div>
-                            <div class="text-mono text-muted" id="cap-res-customer-id">—</div>
-                        </div>
-
-                        <!-- Invoiced total -->
-                        <div class="flex-between mb-2">
-                            <div>
-                                <div class="stat-label">Total Invoiced Value</div>
-                                <div class="stat-value" style="font-size:1.4rem;" id="cap-res-total">—</div>
-                                <div class="text-muted" style="font-size:0.78rem;" id="cap-res-order-count">—</div>
-                            </div>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--hpe-green)" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                        </div>
-
-                        <div class="divider"></div>
-
-                        <!-- CAP allowance -->
-                        <div class="flex-between" style="align-items:center;">
-                            <div>
-                                <div class="stat-label">CAP Allowance (3%)</div>
-                                <div class="stat-value green" style="font-size:1.6rem;" id="cap-res-cap">—</div>
-                            </div>
-                            <div style="font-size:0.72rem;font-weight:700;color:var(--hpe-green);background:var(--hpe-green-light);padding:0.3rem 0.65rem;border-radius:20px;">3% RULE</div>
-                        </div>
-
-                        <!-- Pending warning -->
-                        <div id="cap-pending-warning" style="display:none;" class="mt-2">
-                            <div class="alert alert-warning">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
-                                <span id="cap-pending-msg"></span>
-                            </div>
-                        </div>
-
-                        <!-- Recommendation -->
-                        <div class="cap-recommendation" id="cap-recommendation">
-                            <div class="rec-icon" id="cap-rec-icon">✔</div>
-                            <div>
-                                <div class="rec-title" id="cap-rec-title">Within CAP limit</div>
-                                <div class="rec-body" id="cap-rec-body">—</div>
-                            </div>
-                        </div>
-
-                        <!-- Export -->
-                        <button class="btn btn-ghost btn-sm" style="width:100%; margin-top:1rem;" id="cap-btn-export">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Export CAP Summary
-                        </button>
-                    </div>
-                </div>
-
-            </div><!-- /left column -->
-
-            <!-- RIGHT: orders table -->
-            <div class="card" id="cap-orders-card">
-                <div class="card-header">
-                    <span class="card-title" id="cap-orders-title">Orders</span>
-                    <span class="badge badge-gray" id="cap-orders-badge">—</span>
-                </div>
-                <div id="cap-orders-spinner" class="table-spinner" style="display:none;">
-                    <span class="spinner"></span>
-                </div>
-                <div id="cap-orders-body" style="padding:0;">
-                    <div class="empty-state">
-                        <div class="empty-icon">🔍</div>
-                        <div class="empty-title">No distributor selected</div>
-                        <div class="empty-sub">Search a Sold To Party ID to see their orders and CAP calculation.</div>
-                    </div>
-                </div>
-                <div id="cap-orders-footer" class="card-footer-summary" style="display:none;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span class="text-muted" id="cap-footer-summary">—</span>
-                        <span class="badge badge-yellow" id="cap-footer-pending-badge" style="display:none;">— pending excluded</span>
-                    </div>
-                </div>
-            </div>
-
-        </div><!-- /grid-cap -->
-
-    </div><!-- /section-cap-balance -->
 
 </main>
 

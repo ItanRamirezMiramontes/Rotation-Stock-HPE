@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HPE CAP Rotation Balance — Final Report Manager</title>
+    <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     NAVBAR
+     FIX: HPE logo now uses the real HPE_logo.png asset.
+          The SVG placeholder is removed.
+     ═══════════════════════════════════════════════════════════ -->
+<nav class="navbar">
+
+    <ul class="navbar-links">
+        <li>
+            <button class="nav-link active" data-section="section-orders">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+                Orders
+            </button>
+        </li>
+
+    </ul>
+
+    <div class="navbar-user"><span class="user-badge">INT</span></div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ═══════════════════════════════════════════════════════════ -->
+<main class="main-content">
+
+    <!-- ─────────────────────────────────────────────────────────
+         SECTION: ORDERS
+         ───────────────────────────────────────────────────────── -->
+    <div id="section-orders" class="spa-section active">
+
+        <div class="page-header">
+            <div>
+                <div class="page-eyebrow">Final Report</div>
+                <h1 class="page-title">ZRES Orders</h1>
+            </div>
+            <!-- FIX-5: Last upload chip sits next to the action buttons -->
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.5rem;">
+                <div id="last-upload-chip" class="last-upload-chip" style="display:none;"></div>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <button class="btn btn-ghost btn-sm" id="btn-refresh-orders">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                        Refresh
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-export">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export Excel
+                    </button>
+                    <button class="btn btn-primary btn-sm btn-open-ingest">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Upload SAP Report
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILTER BAR — FIX-4: Header Status filter added -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label class="filter-label">OM Region</label>
+                <select class="filter-select" id="filter-region">
+                    <option value="">All regions</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Fiscal Quarter</label>
+                <select class="filter-select" id="filter-quarter">
+                    <option value="">All quarters</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Fiscal Year</label>
+                <select class="filter-select" id="filter-year">
+                    <option value="">All years</option>
+                </select>
+            </div>
+            <!-- FIX-4: New Header Status filter -->
+            <div class="filter-group">
+                <label class="filter-label">Header Status</label>
+                <select class="filter-select" id="filter-header-status">
+                    <option value="">All header statuses</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Sold To Party ID</label>
+                <input type="text" class="filter-input" id="filter-customer" placeholder="e.g. 1001234" />
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:flex-end;">
+                <button class="btn btn-primary btn-sm" id="btn-apply-filters">Apply</button>
+                <button class="btn btn-ghost btn-sm"   id="btn-clear-filters">Clear</button>
+            </div>
+        </div>
+
+        <!-- TABLE CARD -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Records</span>
+                <span class="text-muted" id="orders-pag-info"></span>
+            </div>
+            <div id="orders-spinner" class="table-spinner" style="display:none;">
+                <span class="spinner"></span>
+            </div>
+            <div id="orders-table-container" style="padding:0;">
+                <div class="empty-state">
+                    <div class="empty-icon">🔄</div>
+                    <div class="empty-title">Loading data…</div>
+                </div>
+            </div>
+            <div class="card-header" style="border-top:1px solid var(--border);border-bottom:none;justify-content:center;">
+                <div class="pagination" id="orders-pagination"></div>
+            </div>
+        </div>
+
+    </div><!-- /section-orders -->
+
+</main>
+
+<footer class="footer">
+    <span>© 2026 Hewlett Packard Enterprise · CAP Rotation Balance · Internal Use Only</span>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: UPLOAD SAP EXCEL REPORT
+     FIX-1: Drop zone restructured — no nested input trigger issues
+     FIX-2: Two independent slots (Raw Data + Price Report)
+     FIX-3: Upload order warning block
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-ingestion">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">Upload SAP Report (Excel)</span>
+            <button class="modal-close" id="modal-close-ingest" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">
+
+            <!-- FIX-3: Upload order enforcement warning (hidden by default) -->
+            <div id="ingest-order-warning" class="alert alert-error" style="display:none; align-items:flex-start; gap:0.75rem; margin-bottom:1rem;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+                <div>
+                    <strong>Upload order required</strong><br/>
+                    <span class="order-warn-msg" style="font-size:0.82rem;"></span>
+                </div>
+            </div>
+
+            <!-- FIX-2: Two separate file upload slots -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+
+                <!-- RAW DATA SLOT -->
+                <div>
+                    <div class="slot-label">
+                        <span class="badge badge-blue" style="margin-bottom:0.5rem;">Step 1</span>
+                        <span style="font-size:0.78rem; color:var(--text-secondary); margin-left:0.5rem;">Raw Data Report</span>
+                    </div>
+                    <!-- FIX-1: input is hidden via CSS pointer-events:none; click is handled by JS on the div -->
+                    <div class="drop-zone drop-zone-sm" id="ingest-raw-slot">
+                        <input type="file" id="ingest-raw-input" accept=".xlsx,.xls" tabindex="-1" />
+                        <div class="drop-icon" style="font-size:1.4rem;">📋</div>
+                        <div class="drop-text" style="font-size:0.8rem;">Click or drag</div>
+                    </div>
+                    <div class="slot-filename" id="ingest-raw-name">No file selected</div>
+                </div>
+
+                <!-- PRICE REPORT SLOT -->
+                <div>
+                    <div class="slot-label">
+                        <span class="badge badge-green" style="margin-bottom:0.5rem;">Step 2</span>
+                        <span style="font-size:0.78rem; color:var(--text-secondary); margin-left:0.5rem;">Price Export Report</span>
+                    </div>
+                    <div class="drop-zone drop-zone-sm" id="ingest-price-slot">
+                        <input type="file" id="ingest-price-input" accept=".xlsx,.xls" tabindex="-1" />
+                        <div class="drop-icon" style="font-size:1.4rem;">💲</div>
+                        <div class="drop-text" style="font-size:0.8rem;">Click or drag</div>
+                    </div>
+                    <div class="slot-filename" id="ingest-price-name">No file selected</div>
+                </div>
+
+            </div>
+
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.75rem; line-height:1.5;">
+                You can upload one or both files at the same time. If uploading only a Price Report, make sure Raw Data has been loaded first. Both files accept <strong>.xlsx</strong> and <strong>.xls</strong>.
+            </p>
+
+            <!-- PROGRESS -->
+            <div id="ingest-progress-wrap" style="display:none;" class="mt-1">
+                <div class="progress-wrap">
+                    <div class="progress-fill" id="ingest-progress-fill" style="width:0%;"></div>
+                </div>
+            </div>
+
+            <!-- RESULT PANEL -->
+            <div id="ingest-result-panel" style="display:none; margin-top:1.25rem;">
+                <div class="divider"></div>
+
+                <div class="flex-between mb-2">
+                    <div>
+                        <span class="stat-label">Detected type: </span>
+                        <span class="text-mono" id="ingest-res-type">—</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <span class="badge" id="ingest-res-status">—</span>
+                        <span class="text-muted" id="ingest-res-ts"></span>
+                    </div>
+                </div>
+
+                <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:1rem;" id="ingest-res-msg"></p>
+
+                <div class="ingest-summary">
+                    <div class="ingest-stat">
+                        <div class="ingest-stat-val" id="ingest-res-total">0</div>
+                        <div class="ingest-stat-lbl">Read</div>
+                    </div>
+                    <div class="ingest-stat inserted">
+                        <div class="ingest-stat-val" id="ingest-res-insert">0</div>
+                        <div class="ingest-stat-lbl">Inserted</div>
+                    </div>
+                    <div class="ingest-stat updated">
+                        <div class="ingest-stat-val" id="ingest-res-update">0</div>
+                        <div class="ingest-stat-lbl">Updated</div>
+                    </div>
+                    <div class="ingest-stat skipped">
+                        <div class="ingest-stat-val" id="ingest-res-skip">0</div>
+                        <div class="ingest-stat-lbl">Skipped</div>
+                    </div>
+                </div>
+
+                <div id="ingest-error-section" style="display:none; margin-top:0.75rem;">
+                    <div class="ingest-stat errored" style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.85rem;border-radius:var(--radius-sm) var(--radius-sm) 0 0;">
+                        <span class="ingest-stat-lbl" style="margin:0;">Orders with errors</span>
+                        <span class="ingest-stat-val" id="ingest-res-error" style="font-size:1rem;">0</span>
+                    </div>
+                    <div class="error-list" id="ingest-error-list"
+                         style="border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);">
+                    </div>
+                </div>
+            </div><!-- /ingest-result-panel -->
+
+            <!-- EXPECTED FORMAT -->
+            <details style="margin-top:1.25rem;">
+                <summary style="cursor:pointer; font-size:0.82rem; color:var(--text-secondary); font-weight:600;">
+                    ▸ View expected column format
+                </summary>
+                <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted); padding:0.75rem; background:var(--bg-base); border-radius:var(--radius-sm);">
+                    <strong>Raw Data Report:</strong> HPE Order, OTYP (must be ZRES), OM Region, Sold To Party ID, Int Header Status, Invoice Header Status, Sorg, Sales Office, Sales Group, Order Entry Date, CustPORef, Ship-to address, RTM, Local currency.
+                    <br><br>
+                    <strong>Price Export:</strong> Sales Document (or HPE Order) + Net Value (Item) (or Net Value).
+                </div>
+            </details>
+
+        </div><!-- /modal-body -->
+
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="modal-cancel-ingest">Cancel</button>
+            <button class="btn btn-primary" id="btn-ingest-upload" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload and Process
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/app.js"></script>
+</body>
+</html>
